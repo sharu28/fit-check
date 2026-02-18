@@ -25,8 +25,8 @@ export function Header({
   const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
   return (
     <>
-      {/* Logo + Credits + Sign Out */}
-      <div className="p-6 border-b border-gray-100 flex flex-col gap-2">
+      {/* Logo + Sign Out */}
+      <div className="p-6 border-b border-gray-100 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-black text-white p-1.5 rounded-lg">
@@ -36,29 +36,27 @@ export function Header({
               Fit Check
             </h1>
           </div>
-          <div className="flex items-center gap-2">
-            {credits != null && (
-              <Link
-                href="/pricing"
-                className="flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-bold hover:bg-amber-100 transition-colors"
-                title={`${planLabel} plan — ${credits} / ${totalCredits} credits`}
-              >
-                <Zap size={11} />
-                <span>{planLabel}</span>
-                <span className="mx-0.5 text-amber-300">|</span>
-                <Coins size={11} />
-                <span>{credits} / {totalCredits}</span>
-              </Link>
-            )}
-            <button
-              onClick={onSignOut}
-              className="text-gray-400 hover:text-red-500"
-              title="Sign Out"
-            >
-              <LogOut size={18} />
-            </button>
-          </div>
+          <button
+            onClick={onSignOut}
+            className="text-gray-400 hover:text-red-500"
+            title="Sign Out"
+          >
+            <LogOut size={18} />
+          </button>
         </div>
+        {credits != null && (
+          <Link
+            href="/pricing"
+            className="flex items-center justify-center gap-1.5 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-xs font-bold hover:bg-amber-100 transition-colors"
+            title={`${planLabel} plan — ${credits} / ${totalCredits} credits`}
+          >
+            <Zap size={12} />
+            <span>{planLabel}</span>
+            <span className="text-amber-300">|</span>
+            <Coins size={12} />
+            <span>{credits} / {totalCredits}</span>
+          </Link>
+        )}
       </div>
 
       {/* Tool Switcher */}
