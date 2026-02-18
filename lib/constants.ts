@@ -21,6 +21,13 @@ export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 export const DEFAULT_PROMPT = 'Change her frock to the new garment. Ensure the model has a South Asian complexion and descent.';
 
+// Monthly credit allocation per plan
+export const PLAN_CREDITS = {
+  free: 10,
+  pro: 100,
+  premium: 500,
+} as const;
+
 // Credit costs per generation type (configurable)
 export const CREDIT_COSTS = {
   image_1k: 6,

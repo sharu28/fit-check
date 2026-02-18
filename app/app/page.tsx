@@ -27,7 +27,7 @@ import { Loader2, Images } from 'lucide-react';
 export default function HomePage() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { toasts, addToast, removeToast } = useToast();
-  const { credits } = useCredits(user?.id ?? null);
+  const { credits, plan } = useCredits(user?.id ?? null);
 
   // Tool mode
   const [currentTool, setCurrentTool] = useState<ToolMode>('style-studio');
@@ -153,6 +153,7 @@ export default function HomePage() {
           onToolChange={setCurrentTool}
           onSignOut={signOut}
           credits={credits}
+          plan={plan}
         />
 
         {currentTool === 'style-studio' ? (
