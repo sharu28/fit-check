@@ -127,6 +127,76 @@ export default function HomePage() {
     });
   }, [personImage, garments, prompt, mode, scene, visualStyle, aspectRatio, resolution, generation, addToast]);
 
+  // Remove background (gallery images)
+  const [removingBgId, setRemovingBgId] = useState<string | null>(null);
+
+  // Remove background (garment slots)
+  const [removingBgSlot, setRemovingBgSlot] = useState<number | null>(null);
+
+  const handleGarmentRemoveBg = useCallback(async (index: number) => {
+    const garment = garments[index];
+    if (!garment) return;
+    setRemovingBgSlot(index);
+    try {
+      const res = await fetch('/api/generate/remove-bg', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          base64: garment.base64,
+          mimeType: garment.mimeType,
+          saveToGallery: false,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Background removal failed');
+      }
+      const result = await res.json();
+      setGarments((prev) => {
+        const next = [...prev];
+        next[index] = {
+          base64: result.base64,
+          previewUrl: result.previewUrl,
+          mimeType: result.mimeType,
+        };
+        return next;
+      });
+      addToast('Background removed!', 'success');
+    } catch (error) {
+      addToast(
+        error instanceof Error ? error.message : 'Background removal failed.',
+        'error',
+      );
+    } finally {
+      setRemovingBgSlot(null);
+    }
+  }, [garments, addToast]);
+
+  const handleRemoveBg = useCallback(async (imageUrl: string, galleryId?: string) => {
+    setRemovingBgId(galleryId ?? 'unsaved');
+    try {
+      const res = await fetch('/api/generate/remove-bg', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl, galleryId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Background removal failed');
+      }
+      const saved = await res.json();
+      gallery.addGeneration(saved);
+      addToast('Background removed! New image saved to gallery.', 'success');
+    } catch (error) {
+      addToast(
+        error instanceof Error ? error.message : 'Background removal failed.',
+        'error',
+      );
+    } finally {
+      setRemovingBgId(null);
+    }
+  }, [gallery, addToast]);
+
   const handleVideoGenerate = useCallback(async () => {
     const err = await video.generate();
     if (err) addToast(err, 'info');
@@ -172,6 +242,8 @@ export default function HomePage() {
               onGarmentChange={handleGarmentChange}
               onSaveUpload={gallery.saveUpload}
               savingId={gallery.savingId}
+              onRemoveBg={handleGarmentRemoveBg}
+              removingBgSlot={removingBgSlot}
             />
 
             <SettingsPanel
@@ -238,6 +310,8 @@ export default function HomePage() {
                   progress={generation.progress}
                   onReset={generation.reset}
                   onDelete={(id) => gallery.deleteItem(id, 'generation')}
+                  onRemoveBg={handleRemoveBg}
+                  removingBgId={removingBgId}
                 />
               )}
             </div>
@@ -256,12 +330,14 @@ export default function HomePage() {
           <VideoGenerator
             status={video.status}
             videoUrl={video.videoUrl}
+            videos={video.videos}
             progress={video.progress}
             errorMsg={video.errorMsg}
             prompt={video.prompt}
             onPromptChange={video.setPrompt}
             onGenerate={handleVideoGenerate}
             onReset={video.reset}
+            onRemoveVideo={video.removeVideo}
           />
         )}
       </main>

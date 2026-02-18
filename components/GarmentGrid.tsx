@@ -1,6 +1,6 @@
 'use client';
 
-import { Shirt, ChevronDown, Save, Loader2 } from 'lucide-react';
+import { Shirt, ChevronDown, Save, Loader2, Eraser } from 'lucide-react';
 import { ImageUploader } from './ImageUploader';
 import { MAX_GARMENTS } from '@/lib/constants';
 import type { UploadedImage, GenerationMode } from '@/types';
@@ -12,6 +12,8 @@ interface GarmentGridProps {
   onGarmentChange: (image: UploadedImage | null, index: number) => void;
   onSaveUpload?: (image: UploadedImage, saveId: string) => void;
   savingId: string | null;
+  onRemoveBg?: (index: number) => void;
+  removingBgSlot?: number | null;
 }
 
 export function GarmentGrid({
@@ -21,6 +23,8 @@ export function GarmentGrid({
   onGarmentChange,
   onSaveUpload,
   savingId,
+  onRemoveBg,
+  removingBgSlot,
 }: GarmentGridProps) {
   return (
     <div className="space-y-4">
@@ -59,23 +63,42 @@ export function GarmentGrid({
                   <div className="absolute bottom-1 right-1 bg-black/70 text-white text-[9px] px-1.5 rounded-full backdrop-blur-sm pointer-events-none">
                     #{index + 1}
                   </div>
-                  {onSaveUpload && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSaveUpload(garments[index], `garment-${index}`);
-                      }}
-                      disabled={savingId === `garment-${index}`}
-                      className="absolute top-1 right-1 p-1 bg-black/50 hover:bg-indigo-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all z-10 disabled:opacity-50"
-                      title="Save to Gallery"
-                    >
-                      {savingId === `garment-${index}` ? (
-                        <Loader2 size={10} className="animate-spin" />
-                      ) : (
-                        <Save size={10} />
-                      )}
-                    </button>
-                  )}
+                  <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-all z-10">
+                    {onRemoveBg && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRemoveBg(index);
+                        }}
+                        disabled={removingBgSlot === index}
+                        className="p-1 bg-black/50 hover:bg-indigo-600 text-white rounded-full disabled:opacity-50"
+                        title="Remove Background"
+                      >
+                        {removingBgSlot === index ? (
+                          <Loader2 size={10} className="animate-spin" />
+                        ) : (
+                          <Eraser size={10} />
+                        )}
+                      </button>
+                    )}
+                    {onSaveUpload && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSaveUpload(garments[index], `garment-${index}`);
+                        }}
+                        disabled={savingId === `garment-${index}`}
+                        className="p-1 bg-black/50 hover:bg-indigo-600 text-white rounded-full disabled:opacity-50"
+                        title="Save to Gallery"
+                      >
+                        {savingId === `garment-${index}` ? (
+                          <Loader2 size={10} className="animate-spin" />
+                        ) : (
+                          <Save size={10} />
+                        )}
+                      </button>
+                    )}
+                  </div>
                 </>
               )}
             </div>

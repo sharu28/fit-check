@@ -5,6 +5,12 @@ import type { UploadedImage } from '@/types';
 
 export type VideoStatus = 'idle' | 'generating' | 'success' | 'error';
 
+export interface VideoItem {
+  id: string;
+  url: string;
+  timestamp: number;
+}
+
 export function useVideoGeneration() {
   const [referenceImage, setReferenceImage] = useState<UploadedImage | null>(null);
   const [prompt, setPrompt] = useState('');
@@ -13,6 +19,7 @@ export function useVideoGeneration() {
   const [sound, setSound] = useState(false);
   const [status, setStatus] = useState<VideoStatus>('idle');
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videos, setVideos] = useState<VideoItem[]>([]);
   const [progress, setProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -62,7 +69,12 @@ export function useVideoGeneration() {
 
           if (data.status === 'completed' && data.resultUrls?.length) {
             stopPolling();
-            setVideoUrl(data.resultUrls[0]);
+            const url = data.resultUrls[0];
+            setVideoUrl(url);
+            setVideos((prev) => [
+              { id: crypto.randomUUID(), url, timestamp: Date.now() },
+              ...prev,
+            ]);
             setStatus('success');
           } else if (data.status === 'failed') {
             stopPolling();
@@ -82,6 +94,10 @@ export function useVideoGeneration() {
     return null;
   }, [prompt, referenceImage, aspectRatio, duration, sound, stopPolling]);
 
+  const removeVideo = useCallback((id: string) => {
+    setVideos((prev) => prev.filter((v) => v.id !== id));
+  }, []);
+
   const reset = useCallback(() => {
     stopPolling();
     setStatus('idle');
@@ -96,7 +112,7 @@ export function useVideoGeneration() {
     aspectRatio, setAspectRatio,
     duration, setDuration,
     sound, setSound,
-    status, videoUrl, progress, errorMsg,
-    generate, reset,
+    status, videoUrl, videos, progress, errorMsg,
+    generate, reset, removeVideo,
   };
 }

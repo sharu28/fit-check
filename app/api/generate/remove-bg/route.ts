@@ -15,27 +15,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { imageUrl, galleryId } = await request.json();
+    const { imageUrl, base64, mimeType, galleryId, saveToGallery = true } = await request.json();
 
-    if (!imageUrl) {
+    if (!imageUrl && !base64) {
       return NextResponse.json(
-        { error: 'Missing imageUrl' },
+        { error: 'Missing imageUrl or base64' },
         { status: 400 },
       );
     }
 
-    // Fetch the original image
-    const imageRes = await fetch(imageUrl);
-    if (!imageRes.ok) {
-      return NextResponse.json(
-        { error: 'Failed to fetch source image' },
-        { status: 502 },
-      );
+    // Get image buffer from URL or base64
+    let imageBuffer: Buffer;
+    if (base64) {
+      const raw = base64.startsWith('data:')
+        ? base64.split(',')[1]
+        : base64;
+      imageBuffer = Buffer.from(raw, 'base64');
+    } else {
+      const imageRes = await fetch(imageUrl);
+      if (!imageRes.ok) {
+        return NextResponse.json(
+          { error: 'Failed to fetch source image' },
+          { status: 502 },
+        );
+      }
+      imageBuffer = Buffer.from(await imageRes.arrayBuffer());
     }
-    const imageBuffer = Buffer.from(await imageRes.arrayBuffer());
 
     // Call Pixian API to remove background
     const resultBuffer = await removeBackground(imageBuffer);
+
+    // If not saving to gallery, return base64 directly (for garment inline replacement)
+    if (!saveToGallery) {
+      const resultBase64 = resultBuffer.toString('base64');
+      const dataUrl = `data:image/png;base64,${resultBase64}`;
+      return NextResponse.json({
+        base64: resultBase64,
+        previewUrl: dataUrl,
+        mimeType: 'image/png',
+      });
+    }
 
     // Upload result to R2
     const id = crypto.randomUUID();

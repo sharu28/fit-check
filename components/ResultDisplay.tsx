@@ -12,6 +12,8 @@ import {
   Smartphone,
   Link2,
   Trash2,
+  Eraser,
+  Loader2,
 } from 'lucide-react';
 import { AppStatus } from '@/types';
 import type { GalleryItem } from '@/types';
@@ -23,6 +25,8 @@ interface ResultDisplayProps {
   progress?: number;
   onReset: () => void;
   onDelete: (id: string) => void;
+  onRemoveBg?: (imageUrl: string, galleryId?: string) => void;
+  removingBgId?: string | null;
 }
 
 export function ResultDisplay({
@@ -32,6 +36,8 @@ export function ResultDisplay({
   progress = 0,
   onReset,
   onDelete,
+  onRemoveBg,
+  removingBgId,
 }: ResultDisplayProps) {
   const [shareImage, setShareImage] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -216,6 +222,8 @@ export function ResultDisplay({
             onDownload={() => downloadImage(item.url)}
             onShare={() => setShareImage(item.url)}
             onDelete={() => setDeleteId(item.id)}
+            onRemoveBg={onRemoveBg ? () => onRemoveBg(item.url, item.id) : undefined}
+            isRemovingBg={removingBgId === item.id}
           />
         ))}
       </div>
@@ -338,6 +346,8 @@ function ImageCard({
   onDownload,
   onShare,
   onDelete,
+  onRemoveBg,
+  isRemovingBg,
 }: {
   url: string;
   fullUrl?: string;
@@ -345,6 +355,8 @@ function ImageCard({
   onDownload: () => void;
   onShare: () => void;
   onDelete?: () => void;
+  onRemoveBg?: () => void;
+  isRemovingBg?: boolean;
 }) {
   return (
     <div
@@ -358,6 +370,11 @@ function ImageCard({
         className="w-full h-full object-cover"
         loading="lazy"
       />
+      {isRemovingBg && (
+        <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10">
+          <Loader2 className="animate-spin text-indigo-600" size={24} />
+        </div>
+      )}
       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
         <button
           onClick={onShare}
@@ -373,6 +390,16 @@ function ImageCard({
         >
           <Download size={18} />
         </button>
+        {onRemoveBg && (
+          <button
+            onClick={onRemoveBg}
+            disabled={isRemovingBg}
+            className="p-2 bg-white text-indigo-600 rounded-full hover:bg-indigo-50 transition-colors shadow-sm disabled:opacity-50"
+            title="Remove Background"
+          >
+            <Eraser size={18} />
+          </button>
+        )}
         {onDelete && (
           <button
             onClick={onDelete}
