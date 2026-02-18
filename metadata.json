@@ -1,0 +1,5 @@
+{
+  "name": "Fit Check",
+  "description": "An AI-powered virtual try-on application that allows users to swap outfits between reference images and modify model attributes like ethnicity and complexion using Google Gemini 3 Pro.",
+  "requestFramePermissions": []
+}

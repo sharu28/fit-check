@@ -1,0 +1,82 @@
+'use client';
+
+import Link from 'next/link';
+import { Sparkles, LogOut, Wand2, Video, Coins } from 'lucide-react';
+import type { ToolMode } from '@/types';
+
+interface HeaderProps {
+  currentTool: ToolMode;
+  onToolChange: (tool: ToolMode) => void;
+  onSignOut: () => void;
+  credits?: number | null;
+}
+
+export function Header({
+  currentTool,
+  onToolChange,
+  onSignOut,
+  credits,
+}: HeaderProps) {
+  return (
+    <>
+      {/* Logo + Credits + Sign Out */}
+      <div className="p-6 border-b border-gray-100 flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-black text-white p-1.5 rounded-lg">
+              <Sparkles size={18} />
+            </div>
+            <h1 className="text-lg font-bold tracking-tight text-gray-900">
+              Fit Check
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            {credits != null && (
+              <Link
+                href="/pricing"
+                className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-bold hover:bg-amber-100 transition-colors"
+                title="Credits remaining"
+              >
+                <Coins size={12} />
+                {credits}
+              </Link>
+            )}
+            <button
+              onClick={onSignOut}
+              className="text-gray-400 hover:text-red-500"
+              title="Sign Out"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Tool Switcher */}
+      <div className="px-6 py-4 border-b border-gray-100">
+        <div className="flex p-1 bg-gray-100 rounded-xl">
+          <button
+            onClick={() => onToolChange('style-studio')}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${
+              currentTool === 'style-studio'
+                ? 'bg-white shadow-sm text-black'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Wand2 size={14} /> Virtual Try-On
+          </button>
+          <button
+            onClick={() => onToolChange('video-generator')}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${
+              currentTool === 'video-generator'
+                ? 'bg-white shadow-sm text-black'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Video size={14} /> Video
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
