@@ -22,7 +22,7 @@ export async function GET() {
 
     if (!profile?.polar_customer_id) {
       // No Polar customer linked yet — return free tier defaults
-      return NextResponse.json({ credits: 0, plan: 'free' });
+      return NextResponse.json({ credits: 10, plan: 'free' });
     }
 
     const credits = await getCustomerCredits(profile.polar_customer_id);

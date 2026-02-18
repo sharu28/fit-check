@@ -1,14 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { Sparkles, LogOut, Wand2, Video, Coins } from 'lucide-react';
+import { Sparkles, LogOut, Wand2, Video, Coins, Zap } from 'lucide-react';
 import type { ToolMode } from '@/types';
+import { PLAN_CREDITS } from '@/lib/constants';
 
 interface HeaderProps {
   currentTool: ToolMode;
   onToolChange: (tool: ToolMode) => void;
   onSignOut: () => void;
   credits?: number | null;
+  plan?: string;
 }
 
 export function Header({
@@ -16,7 +18,11 @@ export function Header({
   onToolChange,
   onSignOut,
   credits,
+  plan = 'free',
 }: HeaderProps) {
+  const planKey = plan as keyof typeof PLAN_CREDITS;
+  const totalCredits = PLAN_CREDITS[planKey] ?? PLAN_CREDITS.free;
+  const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
   return (
     <>
       {/* Logo + Credits + Sign Out */}
@@ -34,11 +40,14 @@ export function Header({
             {credits != null && (
               <Link
                 href="/pricing"
-                className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-bold hover:bg-amber-100 transition-colors"
-                title="Credits remaining"
+                className="flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-bold hover:bg-amber-100 transition-colors"
+                title={`${planLabel} plan — ${credits} / ${totalCredits} credits`}
               >
-                <Coins size={12} />
-                {credits}
+                <Zap size={11} />
+                <span>{planLabel}</span>
+                <span className="mx-0.5 text-amber-300">|</span>
+                <Coins size={11} />
+                <span>{credits} / {totalCredits}</span>
               </Link>
             )}
             <button
