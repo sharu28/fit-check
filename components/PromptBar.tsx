@@ -21,6 +21,7 @@ interface PromptBarProps {
   generationCount: number;
   maxGenerations: number;
   onGenerationCountChange: (next: number) => void;
+  credits: number | null;
 }
 
 export function PromptBar({
@@ -31,6 +32,7 @@ export function PromptBar({
   generationCount,
   maxGenerations,
   onGenerationCountChange,
+  credits,
 }: PromptBarProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [hintIndex, setHintIndex] = useState(0);
@@ -55,6 +57,7 @@ export function PromptBar({
   }, []);
 
   const isGenerating = status === AppStatus.GENERATING;
+  const noCredits = credits !== null && credits <= 0;
   const showHint = !prompt;
   const canDecrease = generationCount > 1 && !isGenerating;
   const canIncrease = generationCount < maxGenerations && !isGenerating;
@@ -124,9 +127,10 @@ export function PromptBar({
 
           <button
             onClick={onGenerate}
-            disabled={isGenerating}
+            disabled={isGenerating || noCredits}
+            title={noCredits ? 'No credits remaining' : undefined}
             className={`h-9 px-6 rounded-full flex items-center justify-center gap-2 transition-all font-semibold text-sm ${
-              isGenerating
+              isGenerating || noCredits
                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 : 'bg-black text-white hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-95'
             }`}

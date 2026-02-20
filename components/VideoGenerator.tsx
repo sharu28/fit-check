@@ -24,6 +24,7 @@ interface VideoGeneratorProps {
   onGenerate: () => void;
   onReset: () => void;
   onRemoveVideo: (id: string) => void;
+  credits: number | null;
 }
 
 export function VideoGenerator({
@@ -36,10 +37,12 @@ export function VideoGenerator({
   onGenerate,
   onReset,
   onRemoveVideo,
+  credits,
 }: VideoGeneratorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const noCredits = credits !== null && credits <= 0;
 
   const downloadVideo = (url: string) => {
     const link = document.createElement('a');
@@ -223,7 +226,13 @@ export function VideoGenerator({
             <div className="flex items-center gap-1 pr-1 pb-0.5">
               <button
                 onClick={onGenerate}
-                className="h-9 px-6 rounded-full flex items-center justify-center gap-2 transition-all font-semibold text-sm bg-black text-white hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-95"
+                disabled={noCredits}
+                title={noCredits ? 'No credits remaining' : undefined}
+                className={`h-9 px-6 rounded-full flex items-center justify-center gap-2 transition-all font-semibold text-sm ${
+                  noCredits
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-black text-white hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-95'
+                }`}
               >
                 <span>Generate</span>
                 <ArrowRight size={16} />

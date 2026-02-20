@@ -18,7 +18,8 @@ import { Gallery } from '@/components/Gallery';
 import { ToastContainer } from '@/components/Toast';
 import { VideoGenerator } from '@/components/VideoGenerator';
 import { VideoControls } from '@/components/VideoControls';
-import { DEFAULT_PROMPT, MAX_GARMENTS } from '@/lib/constants';
+import { DEFAULT_PROMPT, MAX_GARMENTS, MAX_FILE_SIZE_BYTES } from '@/lib/constants';
+import { fileToBase64, readFileToDataUrl } from '@/lib/utils';
 import type { UploadedImage, GenerationMode, ToolMode, GalleryItem } from '@/types';
 import { AppStatus } from '@/types';
 import { PostHogIdentify } from '@/components/PostHogIdentify';
@@ -146,22 +147,17 @@ export default function HomePage() {
   // Remove background (gallery images)
   const [removingBgId, setRemovingBgId] = useState<string | null>(null);
 
-  // Remove background (garment slots)
-  const [removingBgSlot, setRemovingBgSlot] = useState<number | null>(null);
+  // Remove background (garment slots) — tracked as a Set to support parallel removals
+  const [removingBgSlots, setRemovingBgSlots] = useState<Set<number>>(new Set());
 
-  const handleGarmentRemoveBg = useCallback(async (index: number) => {
-    const garment = garments[index];
-    if (!garment) return;
-    setRemovingBgSlot(index);
+  // Core BG removal for a single slot; takes the image directly to avoid stale closure issues
+  const removeBgForSlot = useCallback(async (index: number, garment: UploadedImage) => {
+    setRemovingBgSlots((prev) => new Set(prev).add(index));
     try {
       const res = await fetch('/api/generate/remove-bg', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          base64: garment.base64,
-          mimeType: garment.mimeType,
-          saveToGallery: false,
-        }),
+        body: JSON.stringify({ base64: garment.base64, mimeType: garment.mimeType, saveToGallery: false }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -170,23 +166,64 @@ export default function HomePage() {
       const result = await res.json();
       setGarments((prev) => {
         const next = [...prev];
-        next[index] = {
-          base64: result.base64,
-          previewUrl: result.previewUrl,
-          mimeType: result.mimeType,
-        };
+        next[index] = { base64: result.base64, previewUrl: result.previewUrl, mimeType: result.mimeType };
         return next;
       });
+    } finally {
+      setRemovingBgSlots((prev) => { const s = new Set(prev); s.delete(index); return s; });
+    }
+  }, []);
+
+  const handleGarmentRemoveBg = useCallback(async (index: number) => {
+    const garment = garments[index];
+    if (!garment) return;
+    try {
+      await removeBgForSlot(index, garment);
       addToast('Background removed!', 'success');
     } catch (error) {
-      addToast(
-        error instanceof Error ? error.message : 'Background removal failed.',
-        'error',
-      );
-    } finally {
-      setRemovingBgSlot(null);
+      addToast(error instanceof Error ? error.message : 'Background removal failed.', 'error');
     }
-  }, [garments, addToast]);
+  }, [garments, addToast, removeBgForSlot]);
+
+  const handleBulkGarmentDrop = useCallback(async (files: File[]) => {
+    const availableSlots = MAX_GARMENTS - garments.length;
+    if (availableSlots <= 0) {
+      addToast('All garment slots are full.', 'info');
+      return;
+    }
+    const toProcess = files
+      .filter((f) => f.type.startsWith('image/') && f.size <= MAX_FILE_SIZE_BYTES)
+      .slice(0, availableSlots);
+    if (toProcess.length === 0) return;
+    if (toProcess.length < files.length) {
+      addToast(`${files.length - toProcess.length} file(s) skipped (wrong type or too large).`, 'info');
+    }
+
+    // Convert files → UploadedImage in parallel for instant previews
+    const uploaded = await Promise.all(
+      toProcess.map(async (file) => {
+        const [previewUrl, base64] = await Promise.all([readFileToDataUrl(file), fileToBase64(file)]);
+        return { file, previewUrl, base64, mimeType: file.type } as UploadedImage;
+      }),
+    );
+
+    const startIndex = garments.length;
+    // Show originals immediately
+    setGarments((prev) => {
+      const next = [...prev];
+      uploaded.forEach((img, i) => { next[startIndex + i] = img; });
+      return next;
+    });
+
+    // BG removal in parallel — failures toast per-slot but don't block others
+    await Promise.allSettled(
+      uploaded.map((img, i) =>
+        removeBgForSlot(startIndex + i, img).catch((error) => {
+          addToast(`Slot ${startIndex + i + 1}: ${error instanceof Error ? error.message : 'BG removal failed'}`, 'error');
+        }),
+      ),
+    );
+  }, [garments, addToast, removeBgForSlot]);
 
   const handleRemoveBg = useCallback(async (imageUrl: string, galleryId?: string) => {
     setRemovingBgId(galleryId ?? 'unsaved');
@@ -264,7 +301,8 @@ export default function HomePage() {
               onSaveUpload={gallery.saveUpload}
               savingId={gallery.savingId}
               onRemoveBg={handleGarmentRemoveBg}
-              removingBgSlot={removingBgSlot}
+              removingBgSlots={removingBgSlots}
+              onBulkDrop={handleBulkGarmentDrop}
             />
 
             <SettingsPanel
@@ -353,6 +391,7 @@ export default function HomePage() {
                     Math.min(maxGenerations, Math.max(1, next)),
                   )
                 }
+                credits={credits}
               />
             )}
           </>
@@ -367,6 +406,7 @@ export default function HomePage() {
             onGenerate={handleVideoGenerate}
             onReset={video.reset}
             onRemoveVideo={video.removeVideo}
+            credits={credits}
           />
         )}
       </main>

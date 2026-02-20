@@ -29,6 +29,9 @@ pnpm-debug.log*
 .env
 .env*.local
 
+# claude code (contains secrets)
+.claude/mcp_servers.json
+
 # vercel
 .vercel
 
