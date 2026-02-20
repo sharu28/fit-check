@@ -1,4 +1,4 @@
-# Coding Patterns & Conventions
+# Coding Patterns and Conventions
 
 ## File Organization
 
@@ -7,144 +7,85 @@
 | `components/` | React UI components | Client (`'use client'`) |
 | `hooks/` | Custom React hooks | Client (`'use client'`) |
 | `lib/` | API clients, utilities, constants | Server (except `utils.ts`, `supabase/client.ts`) |
-| `types/` | TypeScript type definitions | Shared |
-| `app/api/` | API route handlers | Server |
-| `app/*/page.tsx` | Page components | Client (main app), Server (landing) |
-
-## Naming Conventions
-
-- **Components**: PascalCase files and exports (`SubjectModal.tsx`, `GarmentGrid.tsx`)
-- **Hooks**: camelCase with `use` prefix (`useAuth.ts`, `useGallery.ts`)
-- **Libraries**: camelCase files (`kie.ts`, `polar.ts`, `r2.ts`)
-- **API routes**: kebab-case folders (`remove-bg/`, `route.ts` inside)
-- **Types**: PascalCase interfaces, camelCase for type aliases (`UploadedImage`, `GenerationMode`)
-
-## Component Patterns
-
-### Props
-Props interfaces are defined inline in the same file, not exported separately:
-```tsx
-interface ResultDisplayProps {
-  status: AppStatus;
-  resultImage: string | null;
-  onReset: () => void;
-}
-
-export function ResultDisplay({ status, resultImage, onReset }: ResultDisplayProps) {
-```
-
-### Icons
-All icons come from `lucide-react`. Import individually:
-```tsx
-import { Wand2, Share2, Download, Trash2 } from 'lucide-react';
-```
-
-### Modals
-Fixed overlay with backdrop blur:
-```tsx
-<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-  <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
-```
+| `types/` | Shared TypeScript models | Shared |
+| `app/api/` | Route handlers | Server |
 
 ## State Management
 
-No global state library. All state is managed via:
-- `useState` in page components
-- Custom hooks that encapsulate domain logic
-- Props drilling from `app/app/page.tsx` down to components
+No global state library. Domain state lives in hooks and page-level state:
 
-Each domain has its own hook:
-- `useAuth()` — user session
-- `useGallery()` — uploads, generations, CRUD
-- `useGeneration()` — image generation lifecycle
-- `useVideoGeneration()` — video generation lifecycle
-- `useCredits()` — billing info
-- `useToast()` — notifications
+- `useAuth` - session/user lifecycle
+- `useGallery` - uploads and saved generations
+- `useGeneration` - image generation tasks, polling, progress, autosave
+- `useVideoGeneration` - video generation lifecycle
+- `useCredits` - plan + credits
+- `useToast` - notifications
 
-## API Route Auth Pattern
+## Auth Route Pattern
 
-Every protected API route follows this pattern:
+Protected routes use server Supabase auth checks:
+
 ```ts
-import { createClient } from '@/lib/supabase/server';
-
-export async function POST(req: Request) {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  // ... route logic
-}
+const supabase = await createClient();
+const { data: { user } } = await supabase.auth.getUser();
+if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 ```
 
-## Polling Pattern
+## Generation Patterns
 
-Used for async AI tasks (image and video generation):
-```ts
-const intervalRef = useRef<NodeJS.Timeout | null>(null);
+### Image generation request
 
-// Start polling
-intervalRef.current = setInterval(async () => {
-  const res = await fetch(`/api/generate/status?taskId=${taskId}`);
-  const data = await res.json();
-  if (data.status === 'completed' || data.status === 'failed') {
-    clearInterval(intervalRef.current!);
-    // handle result
-  }
-}, 3000); // 3s for images, 5s for video
+`/api/generate/image` currently enforces:
+- `resolution` must be `2K` or `4K`
+- `numGenerations` must be integer `1..4`
+- free plan can request only `1`
 
-// Cleanup
-useEffect(() => {
-  return () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-  };
-}, []);
-```
+### Multi-task polling
 
-## Optimistic Updates
+`useGeneration` polls all task IDs concurrently and aggregates progress as average across tasks.
 
-Gallery deletions use optimistic update with rollback:
-```ts
-let previousItems: GalleryItem[] = [];
-setter((prev) => {
-  previousItems = prev;
-  return prev.filter((i) => i.id !== id);
-});
+### Mode-specific reference handling
 
-try {
-  await fetch('/api/storage/delete', { ... });
-} catch {
-  setter(previousItems); // Rollback on error
-}
-```
+- `single` mode: person image + first garment reference.
+- `panel` mode: person image + server-generated 2x2 garment collage.
 
-## Error Handling
+## Subject Preset Pattern
 
-- API routes: try/catch → return JSON error with appropriate status code
-- Client hooks: try/catch → `addToast(message, 'error')`
-- Graceful fallbacks: e.g., watermark failure doesn't block upload, auto-save failure creates local fallback item
+Hardcoded preset images are removed. Subject presets are shared data:
 
-## Styling
+- Read via `GET /api/model-presets?q=&category=`
+- Admin create via `POST /api/model-presets`
+- Tags and categories are stored in Supabase table `model_presets`
+- UI search/filter is implemented in `components/SubjectModal.tsx`
 
-- **Framework**: Tailwind CSS v4 (utility-first, no CSS modules)
-- **Font**: Inter (Google Fonts, loaded in root layout)
-- **Color scheme**: Gray backgrounds (`bg-gray-50`), white cards, indigo accents for active states
-- **Border radius**: `rounded-xl` (cards), `rounded-2xl` (modals), `rounded-full` (badges/buttons)
-- **Layout**: Two-column — 320px sticky sidebar (`w-80`) + fluid main area (`flex-1`)
-- **Custom CSS**: Only for scrollbar styling and toast slide-in animation (`globals.css`)
+## Email Pattern
 
-## Image Processing
+Transactional email delivery uses Resend through `lib/resend.ts`.  
+API entrypoint: `POST /api/email/send`.
 
-- **Server-side**: `sharp` for thumbnails (WebP, 300x400, quality 80), watermark compositing (SVG overlay)
-- **Client-side**: Canvas API for preview thumbnails (`lib/utils.ts` → `createThumbnail`)
-- **Formats**: Original preserved on upload; thumbnails always WebP; bg-removal output is PNG
+## Storage Pattern
+
+Uploads and generations:
+- Original files in R2
+- Optional derived thumbnails in R2
+- Metadata in Supabase (`gallery_items`)
+
+Shared model presets:
+- Stored under shared R2 keys
+- Metadata in Supabase (`model_presets`)
 
 ## Constants
 
-All presets, credit costs, and model identifiers are centralized in `lib/constants.ts`:
-- `PRESET_MODELS` — demo portrait images
-- `SCENE_PRESETS` / `STYLE_PRESETS` — generation options
-- `ASPECT_RATIOS` / `RESOLUTIONS` — output settings
-- `CREDIT_COSTS` — per-action credit pricing
-- `KIE_MODELS` — AI model identifiers
-- `MAX_GARMENTS` (4), `MAX_FILE_SIZE_MB` (20)
+`lib/constants.ts` includes central configuration:
+
+- `SCENE_PRESETS`, `STYLE_PRESETS`
+- `ASPECT_RATIOS`, `RESOLUTIONS` (`2K`, `4K`)
+- `CREDIT_COSTS`
+- `KIE_MODELS`
+- `MAX_GARMENTS`, `MAX_FILE_SIZE_MB`, `DEFAULT_PROMPT`
+
+## Error Handling
+
+- API routes return JSON with clear status codes.
+- Client hooks surface user-facing errors through toasts/UI state.
+- Non-critical failures (for example thumbnail creation) should degrade gracefully.

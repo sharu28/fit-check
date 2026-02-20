@@ -1,6 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { uploadImageToKie, createImageGeneration } from '@/lib/kie';
+import sharp from 'sharp';
+
+async function buildGarmentPanel(
+  garments: { base64: string; mimeType: string }[],
+): Promise<{ base64: string; mimeType: string }> {
+  const slotWidth = 768;
+  const slotHeight = 1024;
+  const cols = 2;
+  const rows = 2;
+
+  const panel = sharp({
+    create: {
+      width: slotWidth * cols,
+      height: slotHeight * rows,
+      channels: 3,
+      background: { r: 245, g: 245, b: 245 },
+    },
+  });
+
+  const composites: sharp.OverlayOptions[] = [];
+
+  for (let i = 0; i < Math.min(garments.length, 4); i += 1) {
+    const garment = garments[i];
+    const inputBuffer = Buffer.from(garment.base64, 'base64');
+    const resized = await sharp(inputBuffer)
+      .resize(slotWidth, slotHeight, {
+        fit: 'contain',
+        background: { r: 255, g: 255, b: 255 },
+      })
+      .toBuffer();
+
+    composites.push({
+      input: resized,
+      left: (i % cols) * slotWidth,
+      top: Math.floor(i / cols) * slotHeight,
+    });
+  }
+
+  const panelBuffer = await panel
+    .composite(composites)
+    .jpeg({ quality: 90 })
+    .toBuffer();
+
+  return {
+    base64: panelBuffer.toString('base64'),
+    mimeType: 'image/jpeg',
+  };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -79,18 +127,28 @@ export async function POST(request: NextRequest) {
       personImage.mimeType,
     );
 
-    const garmentUrls = await Promise.all(
-      garments.map((g: { base64: string; mimeType: string }) =>
-        uploadImageToKie(g.base64, g.mimeType),
-      ),
-    );
+    let garmentUrls: string[] = [];
+
+    if (mode === 'panel') {
+      const panelImage = await buildGarmentPanel(garments);
+      const panelUrl = await uploadImageToKie(panelImage.base64, panelImage.mimeType);
+      garmentUrls = [panelUrl];
+    } else {
+      // Single swap mode uses the first garment as the reference.
+      const firstGarment = garments[0];
+      const firstGarmentUrl = await uploadImageToKie(
+        firstGarment.base64,
+        firstGarment.mimeType,
+      );
+      garmentUrls = [firstGarmentUrl];
+    }
 
     // Build the full prompt with scene/style context
     let fullPrompt = prompt;
     if (scene) fullPrompt += ` Scene: ${scene}.`;
     if (visualStyle) fullPrompt += ` Visual style: ${visualStyle}.`;
     if (mode === 'panel')
-      fullPrompt += ' Show all garments in a grid panel layout.';
+      fullPrompt += ' Use the reference garment panel image and show all outfits in a 2x2 grid panel output.';
 
     // Create kie.ai task
     const imageInputs = [
