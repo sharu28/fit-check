@@ -22,7 +22,7 @@ const plans = [
     credits: 10,
     features: [
       '10 credits/month',
-      'Image generation (1K)',
+      'Image generation (2K)',
       'Basic presets',
       'Community support',
     ],

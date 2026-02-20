@@ -13,41 +13,46 @@ export function useGeneration({ onGenerationSaved }: UseGenerationOptions = {}) 
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollingRefs = useRef<Set<ReturnType<typeof setInterval>>>(new Set());
 
   const stopPolling = useCallback(() => {
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
-    }
+    pollingRefs.current.forEach((intervalId) => clearInterval(intervalId));
+    pollingRefs.current.clear();
+  }, []);
+
+  const clearPollingInterval = useCallback((intervalId: ReturnType<typeof setInterval>) => {
+    clearInterval(intervalId);
+    pollingRefs.current.delete(intervalId);
   }, []);
 
   const pollTaskStatus = useCallback(
-    async (taskId: string) => {
+    async (taskId: string, onProgress?: (progress: number) => void) => {
       return new Promise<string[]>((resolve, reject) => {
-        pollingRef.current = setInterval(async () => {
+        const intervalId = setInterval(async () => {
           try {
             const res = await fetch(`/api/generate/status?taskId=${taskId}`);
             if (!res.ok) throw new Error('Failed to check status');
 
             const data: KieTaskStatus = await res.json();
-            setProgress(data.progress);
+            onProgress?.(data.progress);
 
             if (data.status === 'completed' && data.resultUrls?.length) {
-              stopPolling();
+              clearPollingInterval(intervalId);
               resolve(data.resultUrls);
             } else if (data.status === 'failed') {
-              stopPolling();
+              clearPollingInterval(intervalId);
               reject(new Error(data.error || 'Generation failed'));
             }
           } catch (e) {
-            stopPolling();
+            clearPollingInterval(intervalId);
             reject(e);
           }
         }, 3000);
+
+        pollingRefs.current.add(intervalId);
       });
     },
-    [stopPolling],
+    [clearPollingInterval],
   );
 
   const generateImage = useCallback(
@@ -60,6 +65,7 @@ export function useGeneration({ onGenerationSaved }: UseGenerationOptions = {}) 
       visualStyle: string;
       aspectRatio: string;
       resolution: string;
+      numGenerations: number;
     }) => {
       setStatus(AppStatus.GENERATING);
       setErrorMsg(null);
@@ -85,6 +91,7 @@ export function useGeneration({ onGenerationSaved }: UseGenerationOptions = {}) 
             visualStyle: params.visualStyle,
             aspectRatio: params.aspectRatio,
             resolution: params.resolution,
+            numGenerations: params.numGenerations,
           }),
         });
 
@@ -93,48 +100,77 @@ export function useGeneration({ onGenerationSaved }: UseGenerationOptions = {}) 
           throw new Error(err.error || 'Generation request failed');
         }
 
-        const { taskId } = await res.json();
+        const { taskIds, taskId } = await res.json();
+        const normalizedTaskIds: string[] = Array.isArray(taskIds)
+          ? taskIds
+          : taskId
+            ? [taskId]
+            : [];
 
-        // Poll for completion
-        const resultUrls = await pollTaskStatus(taskId);
+        if (normalizedTaskIds.length === 0) {
+          throw new Error('No generation task was returned');
+        }
+
+        // Poll all tasks and report average progress
+        const taskProgresses = Array(normalizedTaskIds.length).fill(0);
+        const updateAverageProgress = (index: number, value: number) => {
+          taskProgresses[index] = value;
+          const total = taskProgresses.reduce((sum, p) => sum + p, 0);
+          setProgress(total / taskProgresses.length);
+        };
+
+        const taskResults = await Promise.all(
+          normalizedTaskIds.map((id, index) =>
+            pollTaskStatus(id, (taskProgress) =>
+              updateAverageProgress(index, taskProgress),
+            ),
+          ),
+        );
+
+        const resultUrls = taskResults.flat();
         const imageUrl = resultUrls[0];
+        if (!imageUrl) {
+          throw new Error('Generation completed but returned no images');
+        }
 
         setResultImage(imageUrl);
         setStatus(AppStatus.SUCCESS);
 
-        // Auto-save to gallery (R2 + Supabase)
+        // Auto-save all generated results to gallery (R2 + Supabase)
         if (onGenerationSaved) {
-          const localFallback: GalleryItem = {
-            id: crypto.randomUUID(),
-            url: imageUrl,
-            base64: '',
-            mimeType: 'image/png',
-            timestamp: Date.now(),
-            type: 'generation',
-          };
+          for (const url of resultUrls) {
+            const localFallback: GalleryItem = {
+              id: crypto.randomUUID(),
+              url,
+              base64: '',
+              mimeType: 'image/png',
+              timestamp: Date.now(),
+              type: 'generation',
+            };
 
-          try {
-            const uploadRes = await fetch('/api/storage/upload', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                url: imageUrl,
-                mimeType: 'image/png',
-                type: 'generation',
-              }),
-            });
+            try {
+              const uploadRes = await fetch('/api/storage/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  url,
+                  mimeType: 'image/png',
+                  type: 'generation',
+                }),
+              });
 
-            if (!uploadRes.ok) {
-              const errBody = await uploadRes.text();
-              console.error('Auto-save upload failed:', uploadRes.status, errBody);
+              if (!uploadRes.ok) {
+                const errBody = await uploadRes.text();
+                console.error('Auto-save upload failed:', uploadRes.status, errBody);
+                onGenerationSaved(localFallback);
+              } else {
+                const saved = await uploadRes.json();
+                onGenerationSaved(saved);
+              }
+            } catch (e) {
+              console.error('Auto-save network error:', e);
               onGenerationSaved(localFallback);
-            } else {
-              const saved = await uploadRes.json();
-              onGenerationSaved(saved);
             }
-          } catch (e) {
-            console.error('Auto-save network error:', e);
-            onGenerationSaved(localFallback);
           }
         }
       } catch (error) {

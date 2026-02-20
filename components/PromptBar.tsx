@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
-import { Sparkles, ArrowRight } from 'lucide-react';
+import { Sparkles, ArrowRight, Minus, Plus } from 'lucide-react';
 import { AppStatus } from '@/types';
 
 const HINTS = [
@@ -18,6 +18,9 @@ interface PromptBarProps {
   onPromptChange: (v: string) => void;
   onGenerate: () => void;
   status: AppStatus;
+  generationCount: number;
+  maxGenerations: number;
+  onGenerationCountChange: (next: number) => void;
 }
 
 export function PromptBar({
@@ -25,6 +28,9 @@ export function PromptBar({
   onPromptChange,
   onGenerate,
   status,
+  generationCount,
+  maxGenerations,
+  onGenerationCountChange,
 }: PromptBarProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [hintIndex, setHintIndex] = useState(0);
@@ -50,6 +56,8 @@ export function PromptBar({
 
   const isGenerating = status === AppStatus.GENERATING;
   const showHint = !prompt;
+  const canDecrease = generationCount > 1 && !isGenerating;
+  const canIncrease = generationCount < maxGenerations && !isGenerating;
 
   return (
     <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-30">
@@ -89,7 +97,31 @@ export function PromptBar({
 
         <div className="h-6 w-px bg-gray-200 mx-1 mb-2" />
 
-        <div className="flex items-center gap-1 pr-1 pb-0.5">
+        <div className="flex items-center gap-2 pr-1 pb-0.5">
+          <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-full px-1 py-1">
+            <button
+              type="button"
+              onClick={() => onGenerationCountChange(generationCount - 1)}
+              disabled={!canDecrease}
+              className="w-7 h-7 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Decrease number of generations"
+            >
+              <Minus size={14} />
+            </button>
+            <span className="w-10 text-center text-sm font-semibold text-gray-700 tabular-nums">
+              {generationCount}
+            </span>
+            <button
+              type="button"
+              onClick={() => onGenerationCountChange(generationCount + 1)}
+              disabled={!canIncrease}
+              className="w-7 h-7 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Increase number of generations"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+
           <button
             onClick={onGenerate}
             disabled={isGenerating}

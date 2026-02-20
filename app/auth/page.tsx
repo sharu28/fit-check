@@ -45,6 +45,26 @@ export default function AuthPage() {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+        },
+      });
+      if (error) throw error;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
@@ -63,6 +83,33 @@ export default function AuthPage() {
               ? 'Start designing your virtual style.'
               : 'Sign in to access your designs.'}
           </p>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+            className="w-full bg-white text-gray-900 py-3 rounded-xl font-semibold flex items-center justify-center gap-3 border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            {loading ? (
+              <Loader2 className="animate-spin" size={20} />
+            ) : (
+              <>
+                <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden="true">
+                  <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.2-.9 2.3-1.9 3.1l3.1 2.4c1.8-1.7 2.8-4.1 2.8-6.9 0-.7-.1-1.3-.2-2H12z" />
+                  <path fill="#34A853" d="M12 22c2.7 0 5-0.9 6.7-2.4l-3.1-2.4c-.9.6-2 1-3.6 1-2.7 0-4.9-1.8-5.7-4.2l-3.2 2.5C4.8 19.8 8.1 22 12 22z" />
+                  <path fill="#4A90E2" d="M6.3 14c-.2-.6-.3-1.3-.3-2s.1-1.4.3-2L3.1 7.5C2.4 8.9 2 10.4 2 12s.4 3.1 1.1 4.5L6.3 14z" />
+                  <path fill="#FBBC05" d="M12 5.8c1.5 0 2.8.5 3.8 1.5l2.8-2.8C17 2.9 14.7 2 12 2 8.1 2 4.8 4.2 3.1 7.5L6.3 10c.8-2.4 3-4.2 5.7-4.2z" />
+                </svg>
+                Continue with Google
+              </>
+            )}
+          </button>
+
+          <div className="my-6 flex items-center gap-3">
+            <div className="h-px flex-1 bg-gray-200" />
+            <span className="text-xs uppercase tracking-wide text-gray-400">or</span>
+            <div className="h-px flex-1 bg-gray-200" />
+          </div>
 
           <form onSubmit={handleAuth} className="space-y-4">
             <div>

@@ -68,3 +68,14 @@ export interface KieTaskStatus {
   resultUrls?: string[];
   error?: string;
 }
+
+export interface ModelPreset {
+  id: string;
+  label: string;
+  category: string;
+  tags: string[];
+  imageUrl: string;
+  thumbnailUrl?: string | null;
+  mimeType: string;
+  createdAt: string;
+}

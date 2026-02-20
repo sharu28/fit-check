@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useGallery } from '@/hooks/useGallery';
 import { useGeneration } from '@/hooks/useGeneration';
@@ -28,6 +28,7 @@ export default function HomePage() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { toasts, addToast, removeToast } = useToast();
   const { credits, plan } = useCredits(user?.id ?? null);
+  const maxGenerations = plan === 'free' ? 1 : 4;
 
   // Tool mode
   const [currentTool, setCurrentTool] = useState<ToolMode>('style-studio');
@@ -40,9 +41,14 @@ export default function HomePage() {
 
   // Settings
   const [aspectRatio, setAspectRatio] = useState('4:5');
-  const [resolution, setResolution] = useState('1K');
+  const [resolution, setResolution] = useState('2K');
+  const [generationCount, setGenerationCount] = useState(1);
   const [scene, setScene] = useState('');
   const [visualStyle, setVisualStyle] = useState('');
+
+  useEffect(() => {
+    setGenerationCount((prev) => Math.min(Math.max(prev, 1), maxGenerations));
+  }, [maxGenerations]);
 
   // Subject modal
   const [showSubjectModal, setShowSubjectModal] = useState(false);
@@ -124,8 +130,9 @@ export default function HomePage() {
       visualStyle,
       aspectRatio,
       resolution,
+      numGenerations: generationCount,
     });
-  }, [personImage, garments, prompt, mode, scene, visualStyle, aspectRatio, resolution, generation, addToast]);
+  }, [personImage, garments, prompt, mode, scene, visualStyle, aspectRatio, resolution, generationCount, generation, addToast]);
 
   // Remove background (gallery images)
   const [removingBgId, setRemovingBgId] = useState<string | null>(null);
@@ -323,6 +330,13 @@ export default function HomePage() {
                 onPromptChange={setPrompt}
                 onGenerate={handleGenerate}
                 status={generation.status}
+                generationCount={generationCount}
+                maxGenerations={maxGenerations}
+                onGenerationCountChange={(next) =>
+                  setGenerationCount(
+                    Math.min(maxGenerations, Math.max(1, next)),
+                  )
+                }
               />
             )}
           </>

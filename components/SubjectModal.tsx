@@ -1,10 +1,9 @@
 'use client';
 
-import { useRef } from 'react';
-import { X, Upload, CheckCircle } from 'lucide-react';
-import { PRESET_MODELS } from '@/lib/constants';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { X, Upload, CheckCircle, Search, Loader2 } from 'lucide-react';
 import { fileToBase64, readFileToDataUrl } from '@/lib/utils';
-import type { UploadedImage, GalleryItem } from '@/types';
+import type { UploadedImage, GalleryItem, ModelPreset } from '@/types';
 
 interface SubjectModalProps {
   isOpen: boolean;
@@ -22,18 +21,64 @@ export function SubjectModal({
   onGallerySelect,
 }: SubjectModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [presets, setPresets] = useState<ModelPreset[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [query, setQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen) return;
 
-  const loadUrlAsImage = async (url: string) => {
+    const controller = new AbortController();
+    const fetchPresets = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams();
+        if (query.trim()) params.set('q', query.trim());
+        if (selectedCategory !== 'all') params.set('category', selectedCategory);
+        params.set('limit', '120');
+
+        const res = await fetch(`/api/model-presets?${params.toString()}`, {
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          const payload = await res.json().catch(() => ({}));
+          throw new Error(payload.error || 'Failed to load model presets');
+        }
+        const payload = await res.json();
+        setPresets(payload.presets || []);
+        setCategories(payload.categories || []);
+      } catch (fetchError) {
+        if (fetchError instanceof DOMException && fetchError.name === 'AbortError') {
+          return;
+        }
+        setError(fetchError instanceof Error ? fetchError.message : 'Failed to load model presets');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const timeoutId = setTimeout(fetchPresets, 180);
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [isOpen, query, selectedCategory]);
+
+  const loadPresetAsImage = async (preset: ModelPreset) => {
     try {
-      const response = await fetch(url);
+      const response = await fetch(preset.imageUrl);
       const blob = await response.blob();
-      const file = new File([blob], 'preset_subject.jpg', { type: blob.type });
+      const mimeType = blob.type || preset.mimeType || 'image/jpeg';
+      const extension = mimeType.includes('png') ? 'png' : 'jpg';
+      const file = new File([blob], `preset_subject.${extension}`, { type: mimeType });
       const base64 = await fileToBase64(file);
       const previewUrl = await readFileToDataUrl(file);
 
-      onSelectImage({ file, previewUrl, base64, mimeType: blob.type });
+      onSelectImage({ file, previewUrl, base64, mimeType });
       onClose();
     } catch (e) {
       console.error('Failed to load image', e);
@@ -53,6 +98,10 @@ export function SubjectModal({
       console.error('Error processing file:', err);
     }
   };
+
+  const totalPresetCount = useMemo(() => presets.length, [presets]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -78,6 +127,42 @@ export function SubjectModal({
           <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">
             Presets & Upload
           </h3>
+
+          <div className="mb-4 grid md:grid-cols-[1fr_auto] gap-3">
+            <div className="relative">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search by keyword (e.g. indian, woman, dress)"
+                className="w-full h-10 pl-9 pr-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              />
+            </div>
+
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="h-10 rounded-xl border border-gray-200 px-3 bg-white text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+            >
+              <option value="all">All categories</option>
+              {categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {error && (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-10">
             {/* Upload Card */}
             <div
@@ -103,24 +188,42 @@ export function SubjectModal({
             </div>
 
             {/* Preset Cards */}
-            {PRESET_MODELS.map((model, idx) => (
-              <div
-                key={idx}
-                onClick={() => loadUrlAsImage(model.url)}
-                className="relative aspect-[3/4] rounded-xl overflow-hidden group cursor-pointer border border-gray-200 shadow-sm hover:shadow-md transition-all"
-              >
-                <img
-                  src={model.url}
-                  alt={model.label}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
-                  <span className="text-white text-xs font-medium">
-                    {model.label}
-                  </span>
-                </div>
+            {loading ? (
+              <div className="col-span-full flex items-center justify-center py-12 text-gray-500">
+                <Loader2 size={18} className="animate-spin mr-2" />
+                Loading presets...
               </div>
-            ))}
+            ) : (
+              presets.map((preset) => (
+                <div
+                  key={preset.id}
+                  onClick={() => loadPresetAsImage(preset)}
+                  className="relative aspect-[3/4] rounded-xl overflow-hidden group cursor-pointer border border-gray-200 shadow-sm hover:shadow-md transition-all"
+                >
+                  <img
+                    src={preset.thumbnailUrl || preset.imageUrl}
+                    alt={preset.label}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3 gap-1">
+                    <span className="text-white text-xs font-semibold">
+                      {preset.label}
+                    </span>
+                    {preset.tags.length > 0 && (
+                      <span className="text-white/90 text-[11px]">
+                        {preset.tags.slice(0, 3).join(', ')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+
+            {!loading && totalPresetCount === 0 && (
+              <div className="col-span-full rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">
+                No presets found for this search.
+              </div>
+            )}
           </div>
 
           {/* Gallery Section */}
