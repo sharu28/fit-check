@@ -10,13 +10,16 @@ import {
   Clock,
   Upload,
   Check,
+  Play,
 } from 'lucide-react';
 
 interface GalleryProps {
   uploads: GalleryItem[];
   generations: GalleryItem[];
+  videos?: GalleryItem[];
   onSelectUpload: (item: GalleryItem, target: 'person' | 'garment') => void;
   onDelete: (id: string, type: 'upload' | 'generation') => void;
+  onDeleteVideo?: (id: string) => void;
   onUpload?: (file: File) => void;
   selectionMode?: 'try-on' | 'single';
 }
@@ -24,15 +27,18 @@ interface GalleryProps {
 export function Gallery({
   uploads,
   generations,
+  videos = [],
   onSelectUpload,
   onDelete,
+  onDeleteVideo,
   onUpload,
   selectionMode = 'try-on',
 }: GalleryProps) {
-  const [activeTab, setActiveTab] = useState<'uploads' | 'designs'>(
+  const [activeTab, setActiveTab] = useState<'uploads' | 'designs' | 'videos'>(
     'uploads',
   );
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: 'upload' | 'generation' } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: 'upload' | 'generation' | 'video' } | null>(null);
+  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,6 +83,18 @@ export function Gallery({
           >
             My Designs ({generations.length})
           </button>
+          {videos.length > 0 && (
+            <button
+              onClick={() => setActiveTab('videos')}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                activeTab === 'videos'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              My Videos ({videos.length})
+            </button>
+          )}
         </div>
       </div>
 
@@ -201,6 +219,58 @@ export function Gallery({
             )}
           </>
         )}
+
+        {activeTab === 'videos' && (
+          <>
+            {videos.length === 0 ? (
+              <EmptyState message="No videos generated yet" />
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {videos.map((item) => (
+                  <div
+                    key={item.id}
+                    className="group relative aspect-video rounded-lg overflow-hidden bg-gray-900 border border-gray-700"
+                  >
+                    {playingVideoId === item.id ? (
+                      <video
+                        src={item.url}
+                        controls
+                        autoPlay
+                        loop
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <div
+                        onClick={() => setPlayingVideoId(item.id)}
+                        className="w-full h-full flex items-center justify-center cursor-pointer bg-gradient-to-br from-gray-800 to-gray-900"
+                      >
+                        <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm group-hover:bg-white/30 transition-colors">
+                          <Play size={20} className="text-white ml-0.5" />
+                        </div>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center gap-2 pb-3 pointer-events-none">
+                      <a
+                        href={`/api/download?url=${encodeURIComponent(item.url)}`}
+                        className="pointer-events-auto p-2 bg-white text-gray-900 rounded-full hover:bg-gray-50 transition-colors shadow-sm"
+                        title="Download"
+                      >
+                        <Download size={16} />
+                      </a>
+                      <button
+                        onClick={() => setDeleteTarget({ id: item.id, type: 'video' })}
+                        className="pointer-events-auto p-2 bg-white text-red-500 rounded-full hover:bg-red-50 transition-colors shadow-sm"
+                        title="Delete"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Delete Confirmation Modal */}
@@ -212,10 +282,10 @@ export function Gallery({
                 <Trash2 size={24} />
               </div>
               <h3 className="font-semibold text-gray-900 mb-1">
-                Delete {deleteTarget.type === 'upload' ? 'upload' : 'design'}?
+                Delete {deleteTarget.type === 'upload' ? 'upload' : deleteTarget.type === 'video' ? 'video' : 'design'}?
               </h3>
               <p className="text-sm text-gray-500">
-                This will permanently remove this image.
+                This will permanently remove this {deleteTarget.type === 'video' ? 'video' : 'image'}.
               </p>
             </div>
             <div className="flex border-t border-gray-100">
@@ -227,7 +297,11 @@ export function Gallery({
               </button>
               <button
                 onClick={() => {
-                  onDelete(deleteTarget.id, deleteTarget.type);
+                  if (deleteTarget.type === 'video') {
+                    onDeleteVideo?.(deleteTarget.id);
+                  } else {
+                    onDelete(deleteTarget.id, deleteTarget.type);
+                  }
                   setDeleteTarget(null);
                 }}
                 className="flex-1 py-3 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors border-l border-gray-100"

@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { imageUrl, base64, mimeType, galleryId, saveToGallery = true } = await request.json();
+    const { imageUrl, base64, mimeType, saveToGallery = true } = await request.json();
 
     if (!imageUrl && !base64) {
       return NextResponse.json(

@@ -69,10 +69,55 @@ export default function PricingPage() {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   const handleSubscribe = async (planName: string) => {
-    if (planName === 'Free') return;
+    if (planName === 'Free' || !user) return;
     setLoadingPlan(planName);
-    // Polar checkout will be implemented when products are set up
-    setTimeout(() => setLoadingPlan(null), 2000);
+
+    try {
+      const res = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: planName.toLowerCase() }),
+      });
+
+      if (res.status === 503) {
+        alert('Billing is not configured yet. Please check back later.');
+        return;
+      }
+
+      if (!res.ok) throw new Error('Failed to create checkout');
+      const { checkoutUrl } = await res.json();
+      window.location.href = checkoutUrl;
+    } catch {
+      console.error('Checkout failed');
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
+
+  const handleTopUp = async (credits: number) => {
+    if (!user) return;
+    setLoadingPlan(`topup-${credits}`);
+
+    try {
+      const res = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: `topup-${credits}` }),
+      });
+
+      if (res.status === 503) {
+        alert('Billing is not configured yet. Please check back later.');
+        return;
+      }
+
+      if (!res.ok) throw new Error('Failed to create checkout');
+      const { checkoutUrl } = await res.json();
+      window.location.href = checkoutUrl;
+    } catch {
+      console.error('Top-up failed');
+    } finally {
+      setLoadingPlan(null);
+    }
   };
 
   if (loading) {
@@ -198,11 +243,17 @@ export default function PricingPage() {
             ].map((pack) => (
               <button
                 key={pack.credits}
-                className="px-6 py-3 bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all"
+                onClick={() => handleTopUp(pack.credits)}
+                disabled={loadingPlan === `topup-${pack.credits}`}
+                className="px-6 py-3 bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all disabled:opacity-50"
               >
-                <div className="text-lg font-bold text-gray-900">
-                  {pack.credits} credits
-                </div>
+                {loadingPlan === `topup-${pack.credits}` ? (
+                  <Loader2 size={16} className="animate-spin mx-auto mb-1" />
+                ) : (
+                  <div className="text-lg font-bold text-gray-900">
+                    {pack.credits} credits
+                  </div>
+                )}
                 <div className="text-sm text-gray-500">{pack.price}</div>
               </button>
             ))}

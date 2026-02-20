@@ -7,7 +7,7 @@ export const MAX_GARMENTS = 4;
 export const MAX_FILE_SIZE_MB = 20;
 export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-export const DEFAULT_PROMPT = 'Change her frock to the new garment. Ensure the model has a South Asian complexion and descent.';
+export const DEFAULT_PROMPT = 'Dress the person in the provided garment, maintaining their natural appearance.';
 
 // Monthly credit allocation per plan
 export const PLAN_CREDITS = {

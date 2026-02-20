@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { uploadImageToKie, createVideoGeneration } from '@/lib/kie';
+import { getVideoCreditCost, getUserCredits, deductCredits } from '@/lib/credits';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,6 +25,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Credit check
+    const creditCost = getVideoCreditCost((duration || 5) as 5 | 10);
+    const { credits } = await getUserCredits(supabase, user.id);
+
+    if (credits < creditCost) {
+      return NextResponse.json(
+        {
+          error: 'Insufficient credits',
+          code: 'INSUFFICIENT_CREDITS',
+          required: creditCost,
+          available: credits,
+        },
+        { status: 402 },
+      );
+    }
+
     // Upload reference image if provided
     let imageUrl: string | undefined;
     if (imageInput?.base64) {
@@ -38,7 +55,10 @@ export async function POST(request: NextRequest) {
       sound: sound ?? false,
     });
 
-    return NextResponse.json({ taskId });
+    // Deduct credits after successful task submission
+    await deductCredits(supabase, user.id, creditCost);
+
+    return NextResponse.json({ taskId, creditsUsed: creditCost });
   } catch (error) {
     console.error('Video generation error:', error);
     return NextResponse.json(

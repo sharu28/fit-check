@@ -10,7 +10,6 @@ export enum AppStatus {
   GENERATING = 'GENERATING',
   SUCCESS = 'SUCCESS',
   ERROR = 'ERROR',
-  ANALYZING = 'ANALYZING',
 }
 
 export type GenerationMode = 'single' | 'panel';
@@ -34,31 +33,16 @@ export interface GalleryItem {
   base64: string;
   mimeType: string;
   timestamp: number;
-  type: 'upload' | 'generation';
+  type: 'upload' | 'generation' | 'video';
 }
 
 export interface UserProfile {
   id: string;
   polar_customer_id: string | null;
   plan: 'free' | 'pro' | 'premium';
+  credits_remaining: number;
   created_at: string;
   updated_at: string;
-}
-
-export interface GenerationRecord {
-  id: string;
-  user_id: string;
-  type: 'image' | 'video';
-  model: string;
-  task_id: string | null;
-  status: 'processing' | 'completed' | 'failed';
-  credits_used: number;
-  result_url: string | null;
-  thumbnail_url: string | null;
-  prompt: string | null;
-  settings: Record<string, unknown> | null;
-  created_at: string;
-  completed_at: string | null;
 }
 
 export interface KieTaskStatus {

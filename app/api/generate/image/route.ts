@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { uploadImageToKie, createImageGeneration } from '@/lib/kie';
+import { getImageCreditCost, getUserCredits, deductCredits } from '@/lib/credits';
 import sharp from 'sharp';
 
 async function buildGarmentPanel(
@@ -121,6 +122,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Credit check
+    const creditCost = getImageCreditCost(
+      normalizedResolution as '2K' | '4K',
+      requestedGenerations,
+    );
+    const { credits } = await getUserCredits(supabase, user.id);
+
+    if (credits < creditCost) {
+      return NextResponse.json(
+        {
+          error: 'Insufficient credits',
+          code: 'INSUFFICIENT_CREDITS',
+          required: creditCost,
+          available: credits,
+        },
+        { status: 402 },
+      );
+    }
+
     // Upload images to kie.ai
     const personUrl = await uploadImageToKie(
       personImage.base64,
@@ -170,7 +190,10 @@ export async function POST(request: NextRequest) {
       ),
     );
 
-    return NextResponse.json({ taskIds });
+    // Deduct credits after successful task submission
+    await deductCredits(supabase, user.id, creditCost);
+
+    return NextResponse.json({ taskIds, creditsUsed: creditCost });
   } catch (error) {
     console.error('Image generation error:', error);
     return NextResponse.json(

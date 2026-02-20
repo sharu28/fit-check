@@ -16,7 +16,6 @@ import type { VideoStatus, VideoItem } from '@/hooks/useVideoGeneration';
 
 interface VideoGeneratorProps {
   status: VideoStatus;
-  videoUrl: string | null;
   videos: VideoItem[];
   progress: number;
   errorMsg: string | null;

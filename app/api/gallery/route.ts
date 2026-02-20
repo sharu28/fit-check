@@ -50,7 +50,19 @@ export async function GET() {
         type: 'generation' as const,
       }));
 
-    return NextResponse.json({ uploads, generations });
+    const videos = (items || [])
+      .filter((i) => i.type === 'video')
+      .map((i) => ({
+        id: i.id,
+        url: i.url,
+        thumbnailUrl: i.thumbnail_url,
+        base64: '',
+        mimeType: i.mime_type,
+        timestamp: new Date(i.created_at).getTime(),
+        type: 'video' as const,
+      }));
+
+    return NextResponse.json({ uploads, generations, videos });
   } catch (error) {
     console.error('Gallery error:', error);
     return NextResponse.json(

@@ -11,6 +11,7 @@ interface UseGalleryOptions {
 export function useGallery({ userId }: UseGalleryOptions) {
   const [uploads, setUploads] = useState<GalleryItem[]>([]);
   const [generations, setGenerations] = useState<GalleryItem[]>([]);
+  const [videos, setVideos] = useState<GalleryItem[]>([]);
   const [showLibrary, setShowLibrary] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
 
@@ -25,6 +26,7 @@ export function useGallery({ userId }: UseGalleryOptions) {
         const data = await res.json();
         setUploads(data.uploads ?? []);
         setGenerations(data.generations ?? []);
+        setVideos(data.videos ?? []);
       } catch (e) {
         console.error('Failed to load gallery:', e);
       }
@@ -114,6 +116,34 @@ export function useGallery({ userId }: UseGalleryOptions) {
     setGenerations((prev) => [item, ...prev]);
   }, []);
 
+  const addVideo = useCallback((item: GalleryItem) => {
+    setVideos((prev) => [item, ...prev]);
+  }, []);
+
+  const deleteVideo = useCallback(
+    async (id: string) => {
+      let previousItems: GalleryItem[] = [];
+      setVideos((prev) => {
+        previousItems = prev;
+        return prev.filter((i) => i.id !== id);
+      });
+
+      try {
+        const res = await fetch('/api/storage/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, type: 'video' }),
+        });
+        if (!res.ok) throw new Error('Delete failed');
+      } catch (e) {
+        console.error('Failed to delete video:', e);
+        setVideos(previousItems);
+        throw e;
+      }
+    },
+    [],
+  );
+
   const selectGalleryItem = useCallback(
     async (item: GalleryItem): Promise<UploadedImage> => {
       let base64 = item.base64;
@@ -138,6 +168,7 @@ export function useGallery({ userId }: UseGalleryOptions) {
   return {
     uploads,
     generations,
+    videos,
     showLibrary,
     setShowLibrary,
     savingId,
@@ -145,6 +176,8 @@ export function useGallery({ userId }: UseGalleryOptions) {
     directUpload,
     deleteItem,
     addGeneration,
+    addVideo,
+    deleteVideo,
     selectGalleryItem,
   };
 }

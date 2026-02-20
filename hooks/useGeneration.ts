@@ -6,9 +6,10 @@ import type { UploadedImage, GalleryItem, KieTaskStatus } from '@/types';
 
 interface UseGenerationOptions {
   onGenerationSaved?: (item: GalleryItem) => void;
+  onCreditsRefresh?: () => void;
 }
 
-export function useGeneration({ onGenerationSaved }: UseGenerationOptions = {}) {
+export function useGeneration({ onGenerationSaved, onCreditsRefresh }: UseGenerationOptions = {}) {
   const [status, setStatus] = useState<AppStatus>(AppStatus.IDLE);
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -28,7 +29,17 @@ export function useGeneration({ onGenerationSaved }: UseGenerationOptions = {}) 
   const pollTaskStatus = useCallback(
     async (taskId: string, onProgress?: (progress: number) => void) => {
       return new Promise<string[]>((resolve, reject) => {
+        let attempts = 0;
+        const MAX_ATTEMPTS = 120; // ~6 minutes at 3s intervals
+
         const intervalId = setInterval(async () => {
+          attempts++;
+          if (attempts >= MAX_ATTEMPTS) {
+            clearPollingInterval(intervalId);
+            reject(new Error('Generation timed out. Please try again.'));
+            return;
+          }
+
           try {
             const res = await fetch(`/api/generate/status?taskId=${taskId}`);
             if (!res.ok) throw new Error('Failed to check status');
@@ -97,6 +108,9 @@ export function useGeneration({ onGenerationSaved }: UseGenerationOptions = {}) 
 
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
+          if (err.code === 'INSUFFICIENT_CREDITS') {
+            throw new Error('INSUFFICIENT_CREDITS');
+          }
           throw new Error(err.error || 'Generation request failed');
         }
 
@@ -135,6 +149,7 @@ export function useGeneration({ onGenerationSaved }: UseGenerationOptions = {}) 
 
         setResultImage(imageUrl);
         setStatus(AppStatus.SUCCESS);
+        onCreditsRefresh?.();
 
         // Auto-save all generated results to gallery (R2 + Supabase)
         if (onGenerationSaved) {
@@ -181,7 +196,7 @@ export function useGeneration({ onGenerationSaved }: UseGenerationOptions = {}) 
         setStatus(AppStatus.ERROR);
       }
     },
-    [pollTaskStatus, onGenerationSaved],
+    [pollTaskStatus, onGenerationSaved, onCreditsRefresh],
   );
 
   const reset = useCallback(() => {

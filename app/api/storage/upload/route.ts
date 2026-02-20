@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { uploadToR2 } from '@/lib/r2';
+import { applyWatermark } from '@/lib/watermark';
 import sharp from 'sharp';
 
 export async function POST(request: NextRequest) {
@@ -18,15 +19,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { base64, url, mimeType, type } = body;
 
-    let imageBuffer: Buffer;
+    let fileBuffer: Buffer;
 
     if (base64) {
-      imageBuffer = Buffer.from(base64, 'base64');
+      fileBuffer = Buffer.from(base64, 'base64');
     } else if (url) {
       // Fetch from URL (for saving generation results)
       const res = await fetch(url);
       const arrayBuffer = await res.arrayBuffer();
-      imageBuffer = Buffer.from(arrayBuffer);
+      fileBuffer = Buffer.from(arrayBuffer);
     } else {
       return NextResponse.json(
         { error: 'Missing base64 or url' },
@@ -36,29 +37,48 @@ export async function POST(request: NextRequest) {
 
     const timestamp = Date.now();
     const id = crypto.randomUUID();
-    const ext = mimeType?.includes('png') ? 'png' : 'jpg';
+    const isVideo = mimeType?.startsWith('video/');
+    const ext = isVideo ? 'mp4' : mimeType?.includes('png') ? 'png' : 'jpg';
+
+    // Watermark free-tier generation images
+    if (type === 'generation' && !isVideo) {
+      try {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('plan')
+          .eq('id', user.id)
+          .single();
+
+        if (!profile || profile.plan === 'free') {
+          fileBuffer = Buffer.from(await applyWatermark(fileBuffer));
+        }
+      } catch (e) {
+        console.error('Watermark check failed, skipping:', e);
+      }
+    }
 
     // Upload original
     const originalKey = `${user.id}/${type}s/${id}.${ext}`;
     const originalUrl = await uploadToR2(
       originalKey,
-      imageBuffer,
-      mimeType || 'image/jpeg',
+      fileBuffer,
+      mimeType || (isVideo ? 'video/mp4' : 'image/jpeg'),
     );
 
-    // Generate and upload thumbnail
+    // Generate and upload thumbnail (images only)
     let thumbnailUrl: string | undefined;
-    try {
-      const thumbnailBuffer = await sharp(imageBuffer)
-        .resize(300, 400, { fit: 'cover' })
-        .webp({ quality: 80 })
-        .toBuffer();
+    if (!isVideo) {
+      try {
+        const thumbnailBuffer = await sharp(fileBuffer)
+          .resize(300, 400, { fit: 'cover' })
+          .webp({ quality: 80 })
+          .toBuffer();
 
-      const thumbKey = `${user.id}/${type}s/thumbs/${id}.webp`;
-      thumbnailUrl = await uploadToR2(thumbKey, thumbnailBuffer, 'image/webp');
-    } catch (e) {
-      console.error('Thumbnail generation failed:', e);
-      // Continue without thumbnail
+        const thumbKey = `${user.id}/${type}s/thumbs/${id}.webp`;
+        thumbnailUrl = await uploadToR2(thumbKey, thumbnailBuffer, 'image/webp');
+      } catch (e) {
+        console.error('Thumbnail generation failed:', e);
+      }
     }
 
     // Save metadata to Supabase
@@ -86,7 +106,7 @@ export async function POST(request: NextRequest) {
       url: originalUrl,
       thumbnailUrl,
       base64: '',
-      mimeType: mimeType || 'image/jpeg',
+      mimeType: mimeType || (isVideo ? 'video/mp4' : 'image/jpeg'),
       timestamp,
       type,
     });

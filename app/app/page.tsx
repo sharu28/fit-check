@@ -27,7 +27,7 @@ import { Loader2, Images } from 'lucide-react';
 export default function HomePage() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { toasts, addToast, removeToast } = useToast();
-  const { credits, plan } = useCredits(user?.id ?? null);
+  const { credits, plan, refreshCredits } = useCredits(user?.id ?? null);
   const maxGenerations = plan === 'free' ? 1 : 4;
 
   // Tool mode
@@ -59,10 +59,14 @@ export default function HomePage() {
   // Generation
   const generation = useGeneration({
     onGenerationSaved: gallery.addGeneration,
+    onCreditsRefresh: refreshCredits,
   });
 
   // Video generation
-  const video = useVideoGeneration();
+  const video = useVideoGeneration({
+    onVideoSaved: gallery.addVideo,
+    onCreditsRefresh: refreshCredits,
+  });
 
   // Handlers
   const handleGarmentChange = useCallback(
@@ -112,6 +116,11 @@ export default function HomePage() {
   );
 
   const handleGenerate = useCallback(() => {
+    if (credits !== null && credits <= 0) {
+      addToast('You are out of credits. Upgrade your plan to continue.', 'error');
+      window.location.href = '/pricing';
+      return;
+    }
     if (!personImage) {
       addToast('Please select a subject model first.', 'info');
       return;
@@ -132,7 +141,7 @@ export default function HomePage() {
       resolution,
       numGenerations: generationCount,
     });
-  }, [personImage, garments, prompt, mode, scene, visualStyle, aspectRatio, resolution, generationCount, generation, addToast]);
+  }, [credits, personImage, garments, prompt, mode, scene, visualStyle, aspectRatio, resolution, generationCount, generation, addToast]);
 
   // Remove background (gallery images)
   const [removingBgId, setRemovingBgId] = useState<string | null>(null);
@@ -205,9 +214,14 @@ export default function HomePage() {
   }, [gallery, addToast]);
 
   const handleVideoGenerate = useCallback(async () => {
+    if (credits !== null && credits <= 0) {
+      addToast('You are out of credits. Upgrade your plan to continue.', 'error');
+      window.location.href = '/pricing';
+      return;
+    }
     const err = await video.generate();
     if (err) addToast(err, 'info');
-  }, [video, addToast]);
+  }, [credits, video, addToast]);
 
   // Auth loading state
   if (authLoading) {
@@ -305,8 +319,10 @@ export default function HomePage() {
                 <Gallery
                   uploads={gallery.uploads}
                   generations={gallery.generations}
+                  videos={gallery.videos}
                   onSelectUpload={handleGallerySelect}
                   onDelete={gallery.deleteItem}
+                  onDeleteVideo={gallery.deleteVideo}
                   onUpload={gallery.directUpload}
                 />
               ) : (
@@ -343,7 +359,6 @@ export default function HomePage() {
         ) : (
           <VideoGenerator
             status={video.status}
-            videoUrl={video.videoUrl}
             videos={video.videos}
             progress={video.progress}
             errorMsg={video.errorMsg}
