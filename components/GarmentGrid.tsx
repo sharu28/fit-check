@@ -1,15 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Shirt, ChevronDown, Save, Loader2, Eraser } from 'lucide-react';
+import { Shirt, Save, Loader2, Eraser } from 'lucide-react';
 import { ImageUploader } from './ImageUploader';
 import { MAX_GARMENTS } from '@/lib/constants';
-import type { UploadedImage, GenerationMode } from '@/types';
+import type { UploadedImage } from '@/types';
 
 interface GarmentGridProps {
   garments: UploadedImage[];
-  mode: GenerationMode;
-  onModeChange: (mode: GenerationMode) => void;
   onGarmentChange: (image: UploadedImage | null, index: number) => void;
   onSaveUpload?: (image: UploadedImage, saveId: string) => void;
   savingId: string | null;
@@ -20,8 +18,6 @@ interface GarmentGridProps {
 
 export function GarmentGrid({
   garments,
-  mode,
-  onModeChange,
   onGarmentChange,
   onSaveUpload,
   savingId,
@@ -59,20 +55,9 @@ export function GarmentGrid({
         <div className="flex items-center gap-2">
           <Shirt size={14} /> Garment / Outfit
         </div>
-        <div className="relative">
-          <select
-            value={mode}
-            onChange={(e) => onModeChange(e.target.value as GenerationMode)}
-            className="appearance-none bg-gray-100 hover:bg-gray-200 pl-3 pr-7 py-1 rounded-md text-xs font-bold text-gray-700 cursor-pointer focus:outline-none focus:ring-1 focus:ring-gray-300"
-          >
-            <option value="single">Single Swap</option>
-            <option value="panel">Grid Panel</option>
-          </select>
-          <ChevronDown
-            size={10}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
-          />
-        </div>
+        <span className="rounded-md bg-gray-100 px-2.5 py-1 text-[10px] font-semibold text-gray-600">
+          Mode via template
+        </span>
       </div>
 
       <div

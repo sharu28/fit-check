@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
     if (scene) fullPrompt += ` Scene: ${scene}.`;
     if (visualStyle) fullPrompt += ` Visual style: ${visualStyle}.`;
     if (mode === 'panel')
-      fullPrompt += ' Use the reference garment panel image and show all outfits in a 2x2 grid panel output.';
+      fullPrompt += ' Use the reference garment panel image and show all outfits in a 2x2 multi-shot output.';
 
     // Create kie.ai task
     const imageInputs = [

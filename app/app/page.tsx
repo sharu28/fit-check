@@ -267,6 +267,9 @@ export default function HomePage() {
     setSelectedTemplate(template);
     if (template.targetTool === 'style-studio') {
       setPrompt(template.defaultPrompt);
+      if (template.generationMode) {
+        setMode(template.generationMode);
+      }
       setCurrentTool('style-studio');
     } else {
       video.setPrompt(template.defaultPrompt);
@@ -320,6 +323,11 @@ export default function HomePage() {
                 <>
                   <h4 className="mt-1 text-sm font-semibold text-gray-900">{selectedTemplate.title}</h4>
                   <p className="mt-2 text-sm text-gray-600">{selectedTemplate.description}</p>
+                  {selectedTemplate.targetTool === 'style-studio' && selectedTemplate.generationMode && (
+                    <p className="mt-2 text-xs text-gray-500">
+                      Generation mode: {selectedTemplate.generationMode === 'single' ? 'Single Swap' : 'Multi Shot'}
+                    </p>
+                  )}
                   <p className="mt-3 text-xs text-gray-500">
                     Next tool: {selectedTemplate.targetTool === 'style-studio' ? 'Virtual Try-On' : 'Video'}
                   </p>
@@ -347,8 +355,6 @@ export default function HomePage() {
 
             <GarmentGrid
               garments={garments}
-              mode={mode}
-              onModeChange={setMode}
               onGarmentChange={handleGarmentChange}
               onSaveUpload={gallery.saveUpload}
               savingId={gallery.savingId}

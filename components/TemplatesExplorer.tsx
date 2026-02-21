@@ -12,7 +12,9 @@ import {
   Clapperboard,
   CalendarClock,
   Store,
+  Shirt,
 } from 'lucide-react';
+import type { GenerationMode } from '@/types';
 
 export interface TemplateOption {
   id: string;
@@ -22,10 +24,33 @@ export interface TemplateOption {
   description: string;
   defaultPrompt: string;
   targetTool: 'style-studio' | 'video-generator';
+  generationMode?: GenerationMode;
   accentClass: string;
 }
 
 const TEMPLATE_OPTIONS: TemplateOption[] = [
+  {
+    id: 'single-swap',
+    title: 'Single Swap',
+    category: 'tryon',
+    format: 'image',
+    description: 'Try one garment on a model in a clean single-look output.',
+    defaultPrompt: 'Dress the person in the provided garment, maintaining their natural appearance.',
+    targetTool: 'style-studio',
+    generationMode: 'single',
+    accentClass: 'from-sky-200 via-blue-200 to-indigo-200',
+  },
+  {
+    id: 'multi-shot',
+    title: 'Multi Shot',
+    category: 'tryon',
+    format: 'image',
+    description: 'Generate a 2x2 set showing multiple outfit looks in one output.',
+    defaultPrompt: 'Dress the person in the provided garments and present each look clearly.',
+    targetTool: 'style-studio',
+    generationMode: 'panel',
+    accentClass: 'from-violet-200 via-fuchsia-200 to-pink-200',
+  },
   {
     id: 'website-shoot',
     title: 'Website Shoot',
@@ -34,6 +59,7 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     description: 'Crisp storefront-ready model shots with clean composition.',
     defaultPrompt: 'Create polished ecommerce hero images with studio lighting and clean framing.',
     targetTool: 'style-studio',
+    generationMode: 'single',
     accentClass: 'from-slate-200 via-slate-300 to-zinc-200',
   },
   {
@@ -44,6 +70,7 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     description: 'Platform-first visuals tailored for feeds, reels, and stories.',
     defaultPrompt: 'Generate bold campaign visuals with social-first framing, energetic styling, and trend-driven composition.',
     targetTool: 'style-studio',
+    generationMode: 'single',
     accentClass: 'from-indigo-300 via-fuchsia-300 to-rose-300',
   },
   {
@@ -54,6 +81,7 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     description: 'Conversion-focused ad-ready frames with premium product emphasis.',
     defaultPrompt: 'Design ad-ready fashion visuals that highlight garment details and conversion-focused composition.',
     targetTool: 'style-studio',
+    generationMode: 'single',
     accentClass: 'from-amber-200 via-orange-200 to-red-200',
   },
   {
@@ -64,6 +92,7 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     description: 'Swap environments fast for studio, street, editorial, or seasonal sets.',
     defaultPrompt: 'Replace the background with a premium branded set while preserving realistic lighting and shadows.',
     targetTool: 'style-studio',
+    generationMode: 'single',
     accentClass: 'from-cyan-200 via-blue-200 to-slate-200',
   },
   {
@@ -84,6 +113,7 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     description: 'High-fashion editorial layouts for seasonal collections.',
     defaultPrompt: 'Create an editorial lookbook aesthetic with intentional styling, dramatic lighting, and premium art direction.',
     targetTool: 'style-studio',
+    generationMode: 'single',
     accentClass: 'from-violet-200 via-fuchsia-200 to-pink-200',
   },
   {
@@ -104,6 +134,7 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     description: 'Holiday and campaign-ready concepts for launch windows.',
     defaultPrompt: 'Generate seasonal launch visuals with cohesive art direction and campaign storytelling.',
     targetTool: 'style-studio',
+    generationMode: 'single',
     accentClass: 'from-rose-200 via-red-200 to-amber-200',
   },
   {
@@ -114,12 +145,14 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     description: 'Clean listing-compliant assets for marketplaces and catalogs.',
     defaultPrompt: 'Create compliant product listing images with neutral backgrounds and accurate garment detail.',
     targetTool: 'style-studio',
+    generationMode: 'single',
     accentClass: 'from-zinc-200 via-stone-200 to-neutral-300',
   },
 ];
 
 const CATEGORY_LABELS: Record<string, string> = {
   all: 'All',
+  tryon: 'Try-On Modes',
   website: 'Website Shoot',
   social: 'Social Campaign',
   ads: 'Product Ads',
@@ -131,6 +164,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const CATEGORY_ICONS: Record<string, typeof Globe> = {
+  tryon: Shirt,
   website: Globe,
   social: Megaphone,
   ads: Sparkles,
