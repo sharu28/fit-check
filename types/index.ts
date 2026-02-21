@@ -13,7 +13,7 @@ export enum AppStatus {
 }
 
 export type GenerationMode = 'single' | 'panel';
-export type ToolMode = 'style-studio' | 'video-generator';
+export type ToolMode = 'style-studio' | 'video-generator' | 'bg-remover';
 
 export interface GenerationConfig {
   personImage: UploadedImage | null;

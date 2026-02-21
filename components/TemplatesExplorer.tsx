@@ -23,7 +23,7 @@ export interface TemplateOption {
   format: 'image' | 'video' | 'mixed';
   description: string;
   defaultPrompt: string;
-  targetTool: 'style-studio' | 'video-generator';
+  targetTool: 'style-studio' | 'video-generator' | 'bg-remover';
   generationMode?: GenerationMode;
   accentClass: string;
 }
@@ -85,14 +85,13 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     accentClass: 'from-amber-200 via-orange-200 to-red-200',
   },
   {
-    id: 'background-change',
-    title: 'Change Your Background',
+    id: 'remove-background-batch',
+    title: 'Remove Background',
     category: 'background',
     format: 'image',
-    description: 'Swap environments fast for studio, street, editorial, or seasonal sets.',
-    defaultPrompt: 'Replace the background with a premium branded set while preserving realistic lighting and shadows.',
-    targetTool: 'style-studio',
-    generationMode: 'single',
+    description: 'Drop multiple photos and get transparent PNG cutouts in one batch.',
+    defaultPrompt: 'Remove image backgrounds while preserving clean garment edges and details.',
+    targetTool: 'bg-remover',
     accentClass: 'from-cyan-200 via-blue-200 to-slate-200',
   },
   {

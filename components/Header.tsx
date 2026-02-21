@@ -1,23 +1,24 @@
 'use client';
 
 import Link from 'next/link';
-import { Sparkles, LogOut, Wand2, Video, Coins, Zap } from 'lucide-react';
-import type { ToolMode } from '@/types';
+import { Sparkles, LogOut, Coins, Zap } from 'lucide-react';
 import { PLAN_CREDITS } from '@/lib/constants';
 
 interface HeaderProps {
-  currentTool: ToolMode;
-  onToolChange: (tool: ToolMode) => void;
-  onOpenTemplates: () => void;
+  activeSection: 'home' | 'templates' | 'assistant';
+  onNavigateHome: () => void;
+  onNavigateTemplates: () => void;
+  onNavigateAssistant: () => void;
   onSignOut: () => void;
   credits?: number | null;
   plan?: string;
 }
 
 export function Header({
-  currentTool,
-  onToolChange,
-  onOpenTemplates,
+  activeSection,
+  onNavigateHome,
+  onNavigateTemplates,
+  onNavigateAssistant,
   onSignOut,
   credits,
   plan = 'free',
@@ -61,36 +62,55 @@ export function Header({
         )}
       </div>
 
-      {/* Tool Switcher */}
+      {/* App Navigation */}
       <div className="px-6 py-4 border-b border-gray-100">
-        <div className="flex gap-1 p-1 bg-gray-100 rounded-xl">
+        <div className="rounded-2xl border border-gray-200 bg-gray-50 p-2">
           <button
-            onClick={() => onToolChange('style-studio')}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${
-              currentTool === 'style-studio'
-                ? 'bg-white shadow-sm text-black'
-                : 'text-gray-500 hover:text-gray-700'
+            onClick={onNavigateHome}
+            className={`w-full rounded-xl px-3 py-2 text-left text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${
+              activeSection === 'home'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:bg-white hover:text-gray-900'
             }`}
           >
-            <Wand2 size={14} /> Virtual Try-On
+            Home
           </button>
           <button
-            onClick={() => onToolChange('video-generator')}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${
-              currentTool === 'video-generator'
-                ? 'bg-white shadow-sm text-black'
-                : 'text-gray-500 hover:text-gray-700'
+            onClick={onNavigateTemplates}
+            className={`mt-1 w-full rounded-xl px-3 py-2 text-left text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${
+              activeSection === 'templates'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:bg-white hover:text-gray-900'
             }`}
           >
-            <Video size={14} /> Video
+            Templates
+          </button>
+          <button
+            onClick={onNavigateAssistant}
+            className={`mt-1 w-full rounded-xl px-3 py-2 text-left text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${
+              activeSection === 'assistant'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:bg-white hover:text-gray-900'
+            }`}
+          >
+            Assistant
           </button>
         </div>
-        <button
-          onClick={onOpenTemplates}
-          className="mt-3 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
-        >
-          Browse Templates
-        </button>
+
+        <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-2">
+          <div className="flex items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold text-gray-400">
+            <span>Creator Hub</span>
+            <span className="rounded-full border border-gray-200 px-2 py-0.5 text-[11px] uppercase tracking-wide">
+              Coming soon
+            </span>
+          </div>
+          <div className="mt-1 flex items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold text-gray-400">
+            <span>Earn Money</span>
+            <span className="rounded-full border border-gray-200 px-2 py-0.5 text-[11px] uppercase tracking-wide">
+              Coming soon
+            </span>
+          </div>
+        </div>
       </div>
     </>
   );

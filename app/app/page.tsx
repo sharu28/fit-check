@@ -19,10 +19,11 @@ import { ToastContainer } from '@/components/Toast';
 import { VideoGenerator } from '@/components/VideoGenerator';
 import { VideoControls } from '@/components/VideoControls';
 import { TemplatesExplorer, type TemplateOption } from '@/components/TemplatesExplorer';
+import { BulkBackgroundRemover } from '@/components/BulkBackgroundRemover';
+import { AssistantWorkspace } from '@/components/AssistantWorkspace';
 import { DEFAULT_PROMPT, MAX_GARMENTS, MAX_FILE_SIZE_BYTES } from '@/lib/constants';
 import { fileToBase64, readFileToDataUrl } from '@/lib/utils';
 import type { UploadedImage, GenerationMode, ToolMode, GalleryItem } from '@/types';
-import { AppStatus } from '@/types';
 import { PostHogIdentify } from '@/components/PostHogIdentify';
 import { Loader2, Images } from 'lucide-react';
 
@@ -54,8 +55,7 @@ export default function HomePage() {
 
   // Subject modal
   const [showSubjectModal, setShowSubjectModal] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateOption | null>(null);
-  const [showTemplates, setShowTemplates] = useState(true);
+  const [activeSection, setActiveSection] = useState<'home' | 'templates' | 'assistant'>('templates');
 
   // Gallery
   const gallery = useGallery({ userId: user?.id ?? null });
@@ -264,20 +264,33 @@ export default function HomePage() {
   }, [credits, video, addToast]);
 
   const handleUseTemplate = useCallback((template: TemplateOption) => {
-    setSelectedTemplate(template);
     if (template.targetTool === 'style-studio') {
       setPrompt(template.defaultPrompt);
       if (template.generationMode) {
         setMode(template.generationMode);
       }
       setCurrentTool('style-studio');
-    } else {
+    } else if (template.targetTool === 'video-generator') {
       video.setPrompt(template.defaultPrompt);
       setCurrentTool('video-generator');
+    } else {
+      setCurrentTool('bg-remover');
     }
-    setShowTemplates(false);
+    setActiveSection('home');
     addToast(`${template.title} loaded. Customize and generate when ready.`, 'success');
   }, [video, addToast]);
+
+  const navigateHome = useCallback(() => {
+    setActiveSection('home');
+  }, []);
+
+  const navigateTemplates = useCallback(() => {
+    setActiveSection('templates');
+  }, []);
+
+  const navigateAssistant = useCallback(() => {
+    setActiveSection('assistant');
+  }, []);
 
   // Auth loading state
   if (authLoading) {
@@ -296,53 +309,26 @@ export default function HomePage() {
       {/* Left Sidebar */}
       <aside className="w-80 bg-white border-r border-gray-100 flex flex-col h-screen sticky top-0 overflow-y-auto custom-scrollbar">
         <Header
-          currentTool={currentTool}
-          onToolChange={(tool) => {
-            setCurrentTool(tool);
-            setShowTemplates(false);
-          }}
-          onOpenTemplates={() => setShowTemplates(true)}
+          activeSection={activeSection}
+          onNavigateHome={navigateHome}
+          onNavigateTemplates={navigateTemplates}
+          onNavigateAssistant={navigateAssistant}
           onSignOut={signOut}
           credits={credits}
           plan={plan}
         />
 
-        {showTemplates ? (
-          <div className="flex-1 px-6 py-5 space-y-6 overflow-y-auto custom-scrollbar">
+        {activeSection === 'templates' ? (
+          <div className="flex-1" />
+        ) : activeSection === 'assistant' ? (
+          <div className="flex-1 px-6 py-5 overflow-y-auto custom-scrollbar">
             <div className="rounded-2xl border border-gray-200 bg-white p-4">
-              <p className="text-xs uppercase tracking-[0.16em] text-gray-400">Start Here</p>
-              <h3 className="mt-1 text-sm font-semibold text-gray-900">Pick a Template</h3>
+              <p className="text-xs uppercase tracking-[0.16em] text-gray-400">Assistant</p>
+              <h3 className="mt-1 text-sm font-semibold text-gray-900">Chat Workspace</h3>
               <p className="mt-2 text-sm text-gray-600">
-                Choose a template to preload the best starting prompt for your output.
+                Ask for prompt ideas, shot plans, or campaign copy in a conversation flow.
               </p>
             </div>
-
-            <div className="rounded-2xl border border-gray-200 bg-white p-4">
-              <p className="text-xs uppercase tracking-[0.16em] text-gray-400">Selection</p>
-              {selectedTemplate ? (
-                <>
-                  <h4 className="mt-1 text-sm font-semibold text-gray-900">{selectedTemplate.title}</h4>
-                  <p className="mt-2 text-sm text-gray-600">{selectedTemplate.description}</p>
-                  {selectedTemplate.targetTool === 'style-studio' && selectedTemplate.generationMode && (
-                    <p className="mt-2 text-xs text-gray-500">
-                      Generation mode: {selectedTemplate.generationMode === 'single' ? 'Single Swap' : 'Multi Shot'}
-                    </p>
-                  )}
-                  <p className="mt-3 text-xs text-gray-500">
-                    Next tool: {selectedTemplate.targetTool === 'style-studio' ? 'Virtual Try-On' : 'Video'}
-                  </p>
-                </>
-              ) : (
-                <p className="mt-2 text-sm text-gray-600">No template selected yet.</p>
-              )}
-            </div>
-
-            <button
-              onClick={() => setShowTemplates(false)}
-              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
-            >
-              Continue Without Template
-            </button>
           </div>
         ) : currentTool === 'style-studio' ? (
           <div className="flex-1 px-6 py-4 space-y-6 overflow-y-auto custom-scrollbar">
@@ -387,21 +373,33 @@ export default function HomePage() {
               onSoundChange={video.setSound}
             />
           </div>
+        ) : currentTool === 'bg-remover' ? (
+          <div className="flex-1 px-6 py-5 overflow-y-auto custom-scrollbar">
+            <div className="rounded-2xl border border-gray-200 bg-white p-4">
+              <p className="text-xs uppercase tracking-[0.16em] text-gray-400">Tool</p>
+              <h3 className="mt-1 text-sm font-semibold text-gray-900">Bulk Background Removal</h3>
+              <p className="mt-2 text-sm text-gray-600">
+                Drop multiple images, process in one batch, and download transparent outputs.
+              </p>
+            </div>
+          </div>
         ) : null}
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col relative">
-        {showTemplates ? (
+        {activeSection === 'templates' ? (
           <div className="h-[calc(100vh-1.5rem)] p-3 md:p-6">
             <TemplatesExplorer onUseTemplate={handleUseTemplate} />
           </div>
+        ) : activeSection === 'assistant' ? (
+          <AssistantWorkspace />
         ) : currentTool === 'style-studio' ? (
           <>
             {/* Top Bar - Gallery Toggle */}
             <div className="p-4 flex justify-end gap-2">
               <button
-                onClick={() => setShowTemplates(true)}
+                onClick={navigateTemplates}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
               >
                 Templates
@@ -463,11 +461,11 @@ export default function HomePage() {
               />
             )}
           </>
-        ) : (
+        ) : currentTool === 'video-generator' ? (
           <>
             <div className="p-4 flex justify-end">
               <button
-                onClick={() => setShowTemplates(true)}
+                onClick={navigateTemplates}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
               >
                 Templates
@@ -485,6 +483,20 @@ export default function HomePage() {
               onRemoveVideo={video.removeVideo}
               credits={credits}
             />
+          </>
+        ) : (
+          <>
+            <div className="p-4 flex justify-end">
+              <button
+                onClick={navigateTemplates}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+              >
+                Templates
+              </button>
+            </div>
+            <div className="flex-1 pb-4">
+              <BulkBackgroundRemover />
+            </div>
           </>
         )}
       </main>
