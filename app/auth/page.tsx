@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Sparkles, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
@@ -16,6 +16,14 @@ export default function AuthPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        router.replace('/app');
+      }
+    });
+  }, [supabase, router]);
 
   const resetForm = (nextMode: AuthMode) => {
     setMode(nextMode);
