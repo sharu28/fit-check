@@ -85,6 +85,16 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     accentClass: 'from-amber-200 via-orange-200 to-red-200',
   },
   {
+    id: 'launch-campaign-video',
+    title: 'Launch Campaign Video',
+    category: 'social',
+    format: 'video',
+    description: 'Create high-impact launch videos for product drops and brand announcements.',
+    defaultPrompt: 'Create a launch campaign video with cinematic pacing, bold reveal moments, and conversion-focused messaging for a new fashion drop.',
+    targetTool: 'video-generator',
+    accentClass: 'from-rose-200 via-orange-200 to-amber-200',
+  },
+  {
     id: 'remove-background-batch',
     title: 'Remove Background',
     category: 'background',
@@ -197,7 +207,7 @@ export function TemplatesExplorer({ onUseTemplate }: TemplatesExplorerProps) {
   }, [query, activeCategory, activeFormat]);
 
   return (
-    <section className="h-full overflow-hidden rounded-3xl border border-gray-200 bg-white text-gray-900 shadow-sm">
+    <section className="h-full overflow-y-auto rounded-3xl border border-gray-200 bg-white text-gray-900 shadow-sm custom-scrollbar">
       <div className="sticky top-0 z-10 rounded-t-3xl border-b border-gray-200 bg-white/95 p-6 backdrop-blur">
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>

@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import { Header } from '@/components/Header';
 
-export default function SidebarMenuPreviewPage() {
+export default function SidebarMenuCollapsedPreviewPage() {
   const [activeSection, setActiveSection] = useState<'home' | 'templates' | 'assistant' | 'guide' | 'academy'>('templates');
-  const [isMenuOpen, setIsMenuOpen] = useState(true);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-gray-100 p-3 md:p-6">
@@ -28,8 +28,7 @@ export default function SidebarMenuPreviewPage() {
         </aside>
         <main className="flex-1 p-8">
           <p className="text-xs uppercase tracking-[0.2em] text-gray-500">Preview</p>
-          <h1 className="mt-2 text-3xl font-semibold text-gray-900">{activeSection} screen</h1>
-          <p className="mt-3 text-sm text-gray-600">Sidebar navigation rows are text-only and sectioned, with coming-soon tags.</p>
+          <h1 className="mt-2 text-3xl font-semibold text-gray-900">Collapsed menu</h1>
         </main>
       </div>
     </div>

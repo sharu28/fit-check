@@ -21,6 +21,8 @@ import { VideoControls } from '@/components/VideoControls';
 import { TemplatesExplorer, type TemplateOption } from '@/components/TemplatesExplorer';
 import { BulkBackgroundRemover } from '@/components/BulkBackgroundRemover';
 import { AssistantWorkspace } from '@/components/AssistantWorkspace';
+import { GuideWorkspace } from '@/components/GuideWorkspace';
+import { AcademyWorkspace } from '@/components/AcademyWorkspace';
 import { DEFAULT_PROMPT, MAX_GARMENTS, MAX_FILE_SIZE_BYTES } from '@/lib/constants';
 import { fileToBase64, readFileToDataUrl } from '@/lib/utils';
 import type { UploadedImage, GenerationMode, ToolMode, GalleryItem } from '@/types';
@@ -55,7 +57,8 @@ export default function HomePage() {
 
   // Subject modal
   const [showSubjectModal, setShowSubjectModal] = useState(false);
-  const [activeSection, setActiveSection] = useState<'home' | 'templates' | 'assistant'>('templates');
+  const [activeSection, setActiveSection] = useState<'home' | 'templates' | 'assistant' | 'guide' | 'academy'>('templates');
+  const [isMenuOpen, setIsMenuOpen] = useState(true);
 
   // Gallery
   const gallery = useGallery({ userId: user?.id ?? null });
@@ -292,6 +295,14 @@ export default function HomePage() {
     setActiveSection('assistant');
   }, []);
 
+  const navigateGuide = useCallback(() => {
+    setActiveSection('guide');
+  }, []);
+
+  const navigateAcademy = useCallback(() => {
+    setActiveSection('academy');
+  }, []);
+
   // Auth loading state
   if (authLoading) {
     return (
@@ -306,30 +317,39 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <PostHogIdentify user={user} />
+      {isMenuOpen && (
+        <button
+          type="button"
+          aria-label="Close menu overlay"
+          onClick={() => setIsMenuOpen(false)}
+          className="fixed inset-0 z-10 bg-black/25 md:hidden"
+        />
+      )}
       {/* Left Sidebar */}
-      <aside className="w-80 bg-white border-r border-gray-100 flex flex-col h-screen sticky top-0 overflow-y-auto custom-scrollbar">
+      <aside
+        className={`z-20 flex h-screen shrink-0 flex-col border-r border-gray-100 bg-white transition-all duration-300 ${
+          isMenuOpen ? 'w-80' : 'w-[78px]'
+        }`}
+      >
         <Header
           activeSection={activeSection}
+          isMenuOpen={isMenuOpen}
+          onToggleMenu={() => setIsMenuOpen((prev) => !prev)}
           onNavigateHome={navigateHome}
           onNavigateTemplates={navigateTemplates}
           onNavigateAssistant={navigateAssistant}
+          onNavigateGuide={navigateGuide}
+          onNavigateAcademy={navigateAcademy}
           onSignOut={signOut}
+          userEmail={user.email}
           credits={credits}
           plan={plan}
         />
 
-        {activeSection === 'templates' ? (
+        {!isMenuOpen ? (
           <div className="flex-1" />
-        ) : activeSection === 'assistant' ? (
-          <div className="flex-1 px-6 py-5 overflow-y-auto custom-scrollbar">
-            <div className="rounded-2xl border border-gray-200 bg-white p-4">
-              <p className="text-xs uppercase tracking-[0.16em] text-gray-400">Assistant</p>
-              <h3 className="mt-1 text-sm font-semibold text-gray-900">Chat Workspace</h3>
-              <p className="mt-2 text-sm text-gray-600">
-                Ask for prompt ideas, shot plans, or campaign copy in a conversation flow.
-              </p>
-            </div>
-          </div>
+        ) : activeSection === 'templates' || activeSection === 'assistant' || activeSection === 'guide' || activeSection === 'academy' ? (
+          <div className="flex-1" />
         ) : currentTool === 'style-studio' ? (
           <div className="flex-1 px-6 py-4 space-y-6 overflow-y-auto custom-scrollbar">
             <SubjectSelector
@@ -394,6 +414,10 @@ export default function HomePage() {
           </div>
         ) : activeSection === 'assistant' ? (
           <AssistantWorkspace />
+        ) : activeSection === 'guide' ? (
+          <GuideWorkspace />
+        ) : activeSection === 'academy' ? (
+          <AcademyWorkspace />
         ) : currentTool === 'style-studio' ? (
           <>
             {/* Top Bar - Gallery Toggle */}

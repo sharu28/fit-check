@@ -1,77 +1,87 @@
 'use client';
 
-import { useState } from 'react';
-
-interface Message {
-  id: string;
-  role: 'assistant' | 'user';
-  text: string;
-}
-
-const SEED_MESSAGES: Message[] = [
-  {
-    id: 'm1',
-    role: 'assistant',
-    text: 'Welcome to Fit Check Assistant. Ask for campaign ideas, prompt rewrites, or workflow help.',
-  },
-  {
-    id: 'm2',
-    role: 'user',
-    text: 'Give me 3 prompt angles for a premium streetwear drop.',
-  },
-  {
-    id: 'm3',
-    role: 'assistant',
-    text: 'Try: 1) cinematic dusk rooftop, 2) clean concrete studio with hard side light, 3) fast-cut downtown editorial with motion blur accents.',
-  },
+const QUICK_CARDS = [
+  'Place product in a new setting',
+  'Generate different angles of a person',
+  'Optimize text for SEO',
 ];
 
+const TOKENS = {
+  canvas:
+    'bg-[radial-gradient(circle_at_top,#e7f5ee_0%,#f8fafc_42%,#f8fafc_100%)]',
+  textPrimary: 'text-gray-900',
+  textMuted: 'text-gray-500',
+  panel: 'bg-white border border-gray-200',
+  panelShadow: 'shadow-[0_18px_40px_rgba(15,23,42,0.08)]',
+  composerDivider: 'border-gray-200',
+  chip: 'border border-amber-200 bg-amber-50 text-amber-700',
+  sendButton: 'bg-gray-900 text-white hover:bg-black',
+  banner:
+    'border border-gray-200 bg-gradient-to-r from-sky-200 via-indigo-200 to-fuchsia-200',
+  quickCard: 'border border-gray-200 bg-white',
+};
+
 export function AssistantWorkspace() {
-  const [messages] = useState<Message[]>(SEED_MESSAGES);
-
   return (
-    <section className="h-full bg-[#f5f6f8] p-4 md:p-6">
-      <div className="mx-auto flex h-full max-w-5xl flex-col rounded-3xl border border-gray-200 bg-white shadow-sm">
-        <header className="border-b border-gray-200 px-5 py-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-gray-500">Assistant</p>
-          <h2 className="text-xl font-semibold text-gray-900">Fit Check Assistant</h2>
-          <p className="mt-1 text-sm text-gray-600">Chat-style workspace for prompt strategy and creative planning.</p>
-        </header>
+    <section className={`h-full overflow-y-auto p-4 md:p-8 ${TOKENS.canvas}`}>
+      <div className="mx-auto w-full max-w-5xl">
+        <p className={`text-sm ${TOKENS.textMuted}`}>History</p>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
-          {messages.map((message) => (
-            <article
-              key={message.id}
-              className={`max-w-3xl rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                message.role === 'assistant'
-                  ? 'mr-auto bg-gray-100 text-gray-800'
-                  : 'ml-auto bg-gray-900 text-white'
-              }`}
-            >
-              {message.text}
-            </article>
-          ))}
+        <div className="mt-20 text-center md:mt-24">
+          <h1 className={`text-3xl font-medium leading-tight md:text-5xl ${TOKENS.textPrimary}`}>
+            Good morning,
+            <br />
+            What do you want to create?
+          </h1>
+
+          <div
+            className={`mx-auto mt-10 w-full max-w-3xl rounded-3xl p-4 md:p-5 ${TOKENS.panel} ${TOKENS.panelShadow}`}
+          >
+            <label htmlFor="assistant-input" className="sr-only">Ask assistant</label>
+            <textarea
+              id="assistant-input"
+              rows={3}
+              placeholder="Describe your idea, product, or campaign goal..."
+              className="w-full resize-none bg-transparent text-sm text-gray-800 outline-none placeholder:text-gray-400"
+            />
+            <div className={`mt-3 flex items-center justify-between gap-3 border-t pt-3 text-sm ${TOKENS.composerDivider}`}>
+              <button
+                type="button"
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${TOKENS.chip}`}
+              >
+                Templates
+              </button>
+              <button
+                type="button"
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 ${TOKENS.sendButton}`}
+              >
+                Send
+              </button>
+            </div>
+          </div>
         </div>
 
-        <footer className="border-t border-gray-200 px-5 py-4">
-          <label htmlFor="assistant-input" className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
-            Message
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              id="assistant-input"
-              type="text"
-              placeholder="Ask the assistant..."
-              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-600"
-            />
-            <button
-              type="button"
-              className="rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
-            >
-              Send
-            </button>
+        <div className="mx-auto mt-12 w-full max-w-3xl space-y-4">
+          <article className={`overflow-hidden rounded-2xl ${TOKENS.banner}`}>
+            <div className="p-5">
+              <p className="text-2xl font-semibold text-gray-900">Explore templates</p>
+              <button
+                type="button"
+                className="mt-4 rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500"
+              >
+                Explore
+              </button>
+            </div>
+          </article>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {QUICK_CARDS.map((title) => (
+              <article key={title} className={`rounded-2xl p-4 ${TOKENS.quickCard}`}>
+                <p className="text-sm font-semibold text-gray-800">{title}</p>
+              </article>
+            ))}
           </div>
-        </footer>
+        </div>
       </div>
     </section>
   );
