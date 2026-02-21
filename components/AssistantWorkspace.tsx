@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+
 const QUICK_CARDS = [
   'Place product in a new setting',
   'Generate different angles of a person',
@@ -21,7 +23,23 @@ const TOKENS = {
   quickCard: 'border border-gray-200 bg-white',
 };
 
+function getGreetingPeriod(): 'morning' | 'afternoon' | 'night' {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'morning';
+  if (hour < 18) return 'afternoon';
+  return 'night';
+}
+
 export function AssistantWorkspace() {
+  const [greetingPeriod, setGreetingPeriod] = useState<'morning' | 'afternoon' | 'night'>('morning');
+
+  useEffect(() => {
+    const updateGreeting = () => setGreetingPeriod(getGreetingPeriod());
+    updateGreeting();
+    const intervalId = window.setInterval(updateGreeting, 60_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   return (
     <section className={`h-full overflow-y-auto p-4 md:p-8 ${TOKENS.canvas}`}>
       <div className="mx-auto w-full max-w-5xl">
@@ -29,7 +47,7 @@ export function AssistantWorkspace() {
 
         <div className="mt-20 text-center md:mt-24">
           <h1 className={`text-3xl font-medium leading-tight md:text-5xl ${TOKENS.textPrimary}`}>
-            Good morning,
+            Good {greetingPeriod},
             <br />
             What do you want to create?
           </h1>

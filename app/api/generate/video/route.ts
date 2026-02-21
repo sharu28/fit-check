@@ -27,9 +27,13 @@ export async function POST(request: NextRequest) {
 
     // Credit check
     const creditCost = getVideoCreditCost((duration || 5) as 5 | 10);
-    const { credits } = await getUserCredits(supabase, user.id);
+    const { credits, isUnlimited } = await getUserCredits(
+      supabase,
+      user.id,
+      user.email,
+    );
 
-    if (credits < creditCost) {
+    if (!isUnlimited && credits < creditCost) {
       return NextResponse.json(
         {
           error: 'Insufficient credits',
@@ -56,9 +60,9 @@ export async function POST(request: NextRequest) {
     });
 
     // Deduct credits after successful task submission
-    await deductCredits(supabase, user.id, creditCost);
+    await deductCredits(supabase, user.id, creditCost, user.email);
 
-    return NextResponse.json({ taskId, creditsUsed: creditCost });
+    return NextResponse.json({ taskId, creditsUsed: isUnlimited ? 0 : creditCost });
   } catch (error) {
     console.error('Video generation error:', error);
     return NextResponse.json(

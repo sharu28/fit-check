@@ -46,9 +46,13 @@ export function Header({
   credits,
   plan = 'free',
 }: HeaderProps) {
-  const planKey = plan as keyof typeof PLAN_CREDITS;
+  const normalizedPlan = plan.toLowerCase();
+  const isAdminPlan = normalizedPlan === 'admin';
+  const planKey = normalizedPlan as keyof typeof PLAN_CREDITS;
   const totalCredits = PLAN_CREDITS[planKey] ?? PLAN_CREDITS.free;
-  const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
+  const planLabel = isAdminPlan
+    ? 'Admin'
+    : normalizedPlan.charAt(0).toUpperCase() + normalizedPlan.slice(1);
   const initial = (userEmail?.trim()?.[0] ?? 'U').toUpperCase();
 
   const navButtonClass = (active: boolean) =>
@@ -85,13 +89,17 @@ export function Header({
             <Link
               href="/pricing"
               className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-amber-50 py-1.5 text-xs font-bold text-amber-700 transition-colors hover:bg-amber-100"
-              title={`${planLabel} plan - ${credits} / ${totalCredits} credits`}
+              title={
+                isAdminPlan
+                  ? 'Admin plan - unlimited credits'
+                  : `${planLabel} plan - ${credits} / ${totalCredits} credits`
+              }
             >
               <Zap size={12} />
               <span>{planLabel}</span>
               <span className="text-amber-300">|</span>
               <Coins size={12} />
-              <span>{credits} / {totalCredits}</span>
+              <span>{isAdminPlan ? 'Unlimited' : `${credits} / ${totalCredits}`}</span>
             </Link>
           )}
         </div>

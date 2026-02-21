@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import {
   Download,
   RefreshCw,
@@ -27,6 +28,7 @@ interface ResultDisplayProps {
   onDelete: (id: string) => void;
   onRemoveBg?: (imageUrl: string, galleryId?: string) => void;
   removingBgId?: string | null;
+  emptyState?: ReactNode;
 }
 
 export function ResultDisplay({
@@ -38,6 +40,7 @@ export function ResultDisplay({
   onDelete,
   onRemoveBg,
   removingBgId,
+  emptyState,
 }: ResultDisplayProps) {
   const [shareImage, setShareImage] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -118,6 +121,7 @@ export function ResultDisplay({
 
   // Empty state — no generations and not generating
   if (!hasContent && status !== AppStatus.ERROR) {
+    if (emptyState) return <>{emptyState}</>;
     return (
       <div className="w-full h-full min-h-[400px] flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-400">

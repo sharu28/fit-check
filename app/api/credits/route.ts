@@ -13,8 +13,12 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { credits, plan } = await getUserCredits(supabase, user.id);
-    return NextResponse.json({ credits, plan });
+    const { credits, plan, isUnlimited } = await getUserCredits(
+      supabase,
+      user.id,
+      user.email,
+    );
+    return NextResponse.json({ credits, plan, isUnlimited });
   } catch (error) {
     console.error('Credits fetch error:', error);
     return NextResponse.json(

@@ -22,6 +22,8 @@ interface PromptBarProps {
   maxGenerations: number;
   onGenerationCountChange: (next: number) => void;
   credits: number | null;
+  canGenerate?: boolean;
+  blockedReason?: string;
 }
 
 export function PromptBar({
@@ -33,6 +35,8 @@ export function PromptBar({
   maxGenerations,
   onGenerationCountChange,
   credits,
+  canGenerate = true,
+  blockedReason,
 }: PromptBarProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [hintIndex, setHintIndex] = useState(0);
@@ -58,6 +62,7 @@ export function PromptBar({
 
   const isGenerating = status === AppStatus.GENERATING;
   const noCredits = credits !== null && credits <= 0;
+  const blockedByInputs = !canGenerate;
   const showHint = !prompt;
   const canDecrease = generationCount > 1 && !isGenerating;
   const canIncrease = generationCount < maxGenerations && !isGenerating;
@@ -92,7 +97,9 @@ export function PromptBar({
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                onGenerate();
+                if (!isGenerating && !noCredits && !blockedByInputs) {
+                  onGenerate();
+                }
               }
             }}
           />
@@ -127,10 +134,16 @@ export function PromptBar({
 
           <button
             onClick={onGenerate}
-            disabled={isGenerating || noCredits}
-            title={noCredits ? 'No credits remaining' : undefined}
+            disabled={isGenerating || noCredits || blockedByInputs}
+            title={
+              noCredits
+                ? 'No credits remaining'
+                : blockedByInputs
+                ? blockedReason || 'Complete required inputs first'
+                : undefined
+            }
             className={`h-9 px-6 rounded-full flex items-center justify-center gap-2 transition-all font-semibold text-sm ${
-              isGenerating || noCredits
+              isGenerating || noCredits || blockedByInputs
                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 : 'bg-black text-white hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-95'
             }`}
@@ -142,7 +155,7 @@ export function PromptBar({
               </>
             ) : (
               <>
-                <span>Generate</span>
+                <span>{blockedByInputs ? 'Add Required Inputs' : 'Generate'}</span>
                 <ArrowRight size={16} />
               </>
             )}

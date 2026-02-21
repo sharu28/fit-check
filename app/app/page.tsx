@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useGallery } from '@/hooks/useGallery';
 import { useGeneration } from '@/hooks/useGeneration';
@@ -23,9 +23,10 @@ import { BulkBackgroundRemover } from '@/components/BulkBackgroundRemover';
 import { AssistantWorkspace } from '@/components/AssistantWorkspace';
 import { GuideWorkspace } from '@/components/GuideWorkspace';
 import { AcademyWorkspace } from '@/components/AcademyWorkspace';
+import { SingleSwapGuide } from '@/components/SingleSwapGuide';
 import { DEFAULT_PROMPT, MAX_GARMENTS, MAX_FILE_SIZE_BYTES } from '@/lib/constants';
 import { fileToBase64, readFileToDataUrl } from '@/lib/utils';
-import type { UploadedImage, GenerationMode, ToolMode, GalleryItem } from '@/types';
+import { AppStatus, type UploadedImage, type GenerationMode, type ToolMode, type GalleryItem } from '@/types';
 import { PostHogIdentify } from '@/components/PostHogIdentify';
 import { Loader2, Images } from 'lucide-react';
 
@@ -59,6 +60,9 @@ export default function HomePage() {
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [activeSection, setActiveSection] = useState<'home' | 'templates' | 'assistant' | 'guide' | 'academy'>('templates');
   const [isMenuOpen, setIsMenuOpen] = useState(true);
+  const [guideFocusTarget, setGuideFocusTarget] = useState<'garment' | 'subject' | null>(null);
+  const subjectSectionRef = useRef<HTMLDivElement | null>(null);
+  const garmentSectionRef = useRef<HTMLDivElement | null>(null);
 
   // Gallery
   const gallery = useGallery({ userId: user?.id ?? null });
@@ -149,6 +153,21 @@ export default function HomePage() {
       numGenerations: generationCount,
     });
   }, [credits, personImage, garments, prompt, mode, scene, visualStyle, aspectRatio, resolution, generationCount, generation, addToast]);
+
+  const focusGuideTarget = useCallback((target: 'garment' | 'subject') => {
+    setActiveSection('home');
+    setIsMenuOpen(true);
+    setGuideFocusTarget(target);
+
+    if (target === 'subject') {
+      subjectSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setShowSubjectModal(true);
+    } else {
+      garmentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    window.setTimeout(() => setGuideFocusTarget(null), 1800);
+  }, []);
 
   // Remove background (gallery images)
   const [removingBgId, setRemovingBgId] = useState<string | null>(null);
@@ -303,6 +322,17 @@ export default function HomePage() {
     setActiveSection('academy');
   }, []);
 
+  const hasSubject = Boolean(personImage);
+  const hasGarment = garments.length > 0;
+  const canGenerateFromInputs = hasSubject && hasGarment;
+  const showSingleSwapGuide =
+    activeSection === 'home' &&
+    currentTool === 'style-studio' &&
+    mode === 'single' &&
+    !gallery.showLibrary &&
+    !canGenerateFromInputs &&
+    generation.status !== AppStatus.GENERATING;
+
   // Auth loading state
   if (authLoading) {
     return (
@@ -352,22 +382,36 @@ export default function HomePage() {
           <div className="flex-1" />
         ) : currentTool === 'style-studio' ? (
           <div className="flex-1 px-6 py-4 space-y-6 overflow-y-auto custom-scrollbar">
-            <SubjectSelector
-              personImage={personImage}
-              onOpenModal={() => setShowSubjectModal(true)}
-              onSaveUpload={gallery.saveUpload}
-              savingId={gallery.savingId}
-            />
+            <div
+              ref={subjectSectionRef}
+              className={`rounded-2xl transition-all ${
+                guideFocusTarget === 'subject' ? 'ring-2 ring-amber-300 ring-offset-2 ring-offset-white' : ''
+              }`}
+            >
+              <SubjectSelector
+                personImage={personImage}
+                onOpenModal={() => setShowSubjectModal(true)}
+                onSaveUpload={gallery.saveUpload}
+                savingId={gallery.savingId}
+              />
+            </div>
 
-            <GarmentGrid
-              garments={garments}
-              onGarmentChange={handleGarmentChange}
-              onSaveUpload={gallery.saveUpload}
-              savingId={gallery.savingId}
-              onRemoveBg={handleGarmentRemoveBg}
-              removingBgSlots={removingBgSlots}
-              onBulkDrop={handleBulkGarmentDrop}
-            />
+            <div
+              ref={garmentSectionRef}
+              className={`rounded-2xl transition-all ${
+                guideFocusTarget === 'garment' ? 'ring-2 ring-amber-300 ring-offset-2 ring-offset-white' : ''
+              }`}
+            >
+              <GarmentGrid
+                garments={garments}
+                onGarmentChange={handleGarmentChange}
+                onSaveUpload={gallery.saveUpload}
+                savingId={gallery.savingId}
+                onRemoveBg={handleGarmentRemoveBg}
+                removingBgSlots={removingBgSlots}
+                onBulkDrop={handleBulkGarmentDrop}
+              />
+            </div>
 
             <SettingsPanel
               aspectRatio={aspectRatio}
@@ -463,6 +507,18 @@ export default function HomePage() {
                   onDelete={(id) => gallery.deleteItem(id, 'generation')}
                   onRemoveBg={handleRemoveBg}
                   removingBgId={removingBgId}
+                  emptyState={
+                    showSingleSwapGuide ? (
+                      <SingleSwapGuide
+                        hasGarment={hasGarment}
+                        hasSubject={hasSubject}
+                        garmentPreviewUrl={garments[0]?.previewUrl}
+                        subjectPreviewUrl={personImage?.previewUrl}
+                        onAddGarment={() => focusGuideTarget('garment')}
+                        onAddSubject={() => focusGuideTarget('subject')}
+                      />
+                    ) : undefined
+                  }
                 />
               )}
             </div>
@@ -482,6 +538,8 @@ export default function HomePage() {
                   )
                 }
                 credits={credits}
+                canGenerate={canGenerateFromInputs}
+                blockedReason="Upload a garment and choose a subject first"
               />
             )}
           </>

@@ -108,14 +108,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('plan')
-      .eq('id', user.id)
-      .single();
+    const { credits, plan, isUnlimited } = await getUserCredits(
+      supabase,
+      user.id,
+      user.email,
+    );
 
-    const plan = profile?.plan || 'free';
-    if (plan === 'free' && requestedGenerations > 1) {
+    if (plan === 'free' && requestedGenerations > 1 && !isUnlimited) {
       return NextResponse.json(
         { error: 'Free users can only generate 1 image at a time' },
         { status: 403 },
@@ -127,9 +126,8 @@ export async function POST(request: NextRequest) {
       normalizedResolution as '2K' | '4K',
       requestedGenerations,
     );
-    const { credits } = await getUserCredits(supabase, user.id);
 
-    if (credits < creditCost) {
+    if (!isUnlimited && credits < creditCost) {
       return NextResponse.json(
         {
           error: 'Insufficient credits',
@@ -191,9 +189,9 @@ export async function POST(request: NextRequest) {
     );
 
     // Deduct credits after successful task submission
-    await deductCredits(supabase, user.id, creditCost);
+    await deductCredits(supabase, user.id, creditCost, user.email);
 
-    return NextResponse.json({ taskIds, creditsUsed: creditCost });
+    return NextResponse.json({ taskIds, creditsUsed: isUnlimited ? 0 : creditCost });
   } catch (error) {
     console.error('Image generation error:', error);
     return NextResponse.json(
