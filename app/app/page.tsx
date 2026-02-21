@@ -18,6 +18,7 @@ import { Gallery } from '@/components/Gallery';
 import { ToastContainer } from '@/components/Toast';
 import { VideoGenerator } from '@/components/VideoGenerator';
 import { VideoControls } from '@/components/VideoControls';
+import { TemplatesExplorer, type TemplateOption } from '@/components/TemplatesExplorer';
 import { DEFAULT_PROMPT, MAX_GARMENTS, MAX_FILE_SIZE_BYTES } from '@/lib/constants';
 import { fileToBase64, readFileToDataUrl } from '@/lib/utils';
 import type { UploadedImage, GenerationMode, ToolMode, GalleryItem } from '@/types';
@@ -53,6 +54,8 @@ export default function HomePage() {
 
   // Subject modal
   const [showSubjectModal, setShowSubjectModal] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateOption | null>(null);
+  const [showTemplates, setShowTemplates] = useState(true);
 
   // Gallery
   const gallery = useGallery({ userId: user?.id ?? null });
@@ -260,6 +263,19 @@ export default function HomePage() {
     if (err) addToast(err, 'info');
   }, [credits, video, addToast]);
 
+  const handleUseTemplate = useCallback((template: TemplateOption) => {
+    setSelectedTemplate(template);
+    if (template.targetTool === 'style-studio') {
+      setPrompt(template.defaultPrompt);
+      setCurrentTool('style-studio');
+    } else {
+      video.setPrompt(template.defaultPrompt);
+      setCurrentTool('video-generator');
+    }
+    setShowTemplates(false);
+    addToast(`${template.title} loaded. Customize and generate when ready.`, 'success');
+  }, [video, addToast]);
+
   // Auth loading state
   if (authLoading) {
     return (
@@ -278,13 +294,49 @@ export default function HomePage() {
       <aside className="w-80 bg-white border-r border-gray-100 flex flex-col h-screen sticky top-0 overflow-y-auto custom-scrollbar">
         <Header
           currentTool={currentTool}
-          onToolChange={setCurrentTool}
+          onToolChange={(tool) => {
+            setCurrentTool(tool);
+            setShowTemplates(false);
+          }}
+          onOpenTemplates={() => setShowTemplates(true)}
           onSignOut={signOut}
           credits={credits}
           plan={plan}
         />
 
-        {currentTool === 'style-studio' ? (
+        {showTemplates ? (
+          <div className="flex-1 px-6 py-5 space-y-6 overflow-y-auto custom-scrollbar">
+            <div className="rounded-2xl border border-gray-200 bg-white p-4">
+              <p className="text-xs uppercase tracking-[0.16em] text-gray-400">Start Here</p>
+              <h3 className="mt-1 text-sm font-semibold text-gray-900">Pick a Template</h3>
+              <p className="mt-2 text-sm text-gray-600">
+                Choose a template to preload the best starting prompt for your output.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-white p-4">
+              <p className="text-xs uppercase tracking-[0.16em] text-gray-400">Selection</p>
+              {selectedTemplate ? (
+                <>
+                  <h4 className="mt-1 text-sm font-semibold text-gray-900">{selectedTemplate.title}</h4>
+                  <p className="mt-2 text-sm text-gray-600">{selectedTemplate.description}</p>
+                  <p className="mt-3 text-xs text-gray-500">
+                    Next tool: {selectedTemplate.targetTool === 'style-studio' ? 'Virtual Try-On' : 'Video'}
+                  </p>
+                </>
+              ) : (
+                <p className="mt-2 text-sm text-gray-600">No template selected yet.</p>
+              )}
+            </div>
+
+            <button
+              onClick={() => setShowTemplates(false)}
+              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              Continue Without Template
+            </button>
+          </div>
+        ) : currentTool === 'style-studio' ? (
           <div className="flex-1 px-6 py-4 space-y-6 overflow-y-auto custom-scrollbar">
             <SubjectSelector
               personImage={personImage}
@@ -316,7 +368,7 @@ export default function HomePage() {
               onVisualStyleChange={setVisualStyle}
             />
           </div>
-        ) : (
+        ) : currentTool === 'video-generator' ? (
           <div className="flex-1 px-6 py-4 overflow-y-auto custom-scrollbar">
             <VideoControls
               referenceImage={video.referenceImage}
@@ -329,15 +381,25 @@ export default function HomePage() {
               onSoundChange={video.setSound}
             />
           </div>
-        )}
+        ) : null}
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col relative">
-        {currentTool === 'style-studio' ? (
+        {showTemplates ? (
+          <div className="h-[calc(100vh-1.5rem)] p-3 md:p-6">
+            <TemplatesExplorer onUseTemplate={handleUseTemplate} />
+          </div>
+        ) : currentTool === 'style-studio' ? (
           <>
             {/* Top Bar - Gallery Toggle */}
-            <div className="p-4 flex justify-end">
+            <div className="p-4 flex justify-end gap-2">
+              <button
+                onClick={() => setShowTemplates(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+              >
+                Templates
+              </button>
               <button
                 onClick={() => gallery.setShowLibrary(!gallery.showLibrary)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
@@ -396,18 +458,28 @@ export default function HomePage() {
             )}
           </>
         ) : (
-          <VideoGenerator
-            status={video.status}
-            videos={video.videos}
-            progress={video.progress}
-            errorMsg={video.errorMsg}
-            prompt={video.prompt}
-            onPromptChange={video.setPrompt}
-            onGenerate={handleVideoGenerate}
-            onReset={video.reset}
-            onRemoveVideo={video.removeVideo}
-            credits={credits}
-          />
+          <>
+            <div className="p-4 flex justify-end">
+              <button
+                onClick={() => setShowTemplates(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+              >
+                Templates
+              </button>
+            </div>
+            <VideoGenerator
+              status={video.status}
+              videos={video.videos}
+              progress={video.progress}
+              errorMsg={video.errorMsg}
+              prompt={video.prompt}
+              onPromptChange={video.setPrompt}
+              onGenerate={handleVideoGenerate}
+              onReset={video.reset}
+              onRemoveVideo={video.removeVideo}
+              credits={credits}
+            />
+          </>
         )}
       </main>
 

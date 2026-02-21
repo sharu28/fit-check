@@ -8,6 +8,7 @@ import { PLAN_CREDITS } from '@/lib/constants';
 interface HeaderProps {
   currentTool: ToolMode;
   onToolChange: (tool: ToolMode) => void;
+  onOpenTemplates: () => void;
   onSignOut: () => void;
   credits?: number | null;
   plan?: string;
@@ -16,6 +17,7 @@ interface HeaderProps {
 export function Header({
   currentTool,
   onToolChange,
+  onOpenTemplates,
   onSignOut,
   credits,
   plan = 'free',
@@ -61,7 +63,7 @@ export function Header({
 
       {/* Tool Switcher */}
       <div className="px-6 py-4 border-b border-gray-100">
-        <div className="flex p-1 bg-gray-100 rounded-xl">
+        <div className="flex gap-1 p-1 bg-gray-100 rounded-xl">
           <button
             onClick={() => onToolChange('style-studio')}
             className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${
@@ -83,6 +85,12 @@ export function Header({
             <Video size={14} /> Video
           </button>
         </div>
+        <button
+          onClick={onOpenTemplates}
+          className="mt-3 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+        >
+          Browse Templates
+        </button>
       </div>
     </>
   );

@@ -111,3 +111,14 @@ See `.env.example` for all required variables. Key groups:
 - [Patterns](docs/patterns.md) - Coding conventions and project patterns
 - [Model Presets SQL](docs/model-presets.sql) - Shared preset table and policies
 - [Tasks](docs/tasks.md) - Completed work and pending tasks
+
+## UI and Design Steering Rules
+
+For all future UI/design changes, follow `AGENTS.md` "UI and Design Harness".
+
+Minimum expectations:
+- Propose 2-3 visual directions before coding new UI.
+- Use explicit design tokens and a coherent visual direction.
+- Deliver mobile + desktop behavior together.
+- Pass keyboard/focus/label/contrast accessibility checks.
+- Capture and review local screenshots before confirming UI changes, and run `npx tsc --noEmit`.
