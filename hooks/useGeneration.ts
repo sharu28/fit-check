@@ -146,14 +146,11 @@ export function useGeneration({ onGenerationSaved, onCreditsRefresh }: UseGenera
         if (!imageUrl) {
           throw new Error('Generation completed but returned no images');
         }
-
-        setResultImage(imageUrl);
-        setStatus(AppStatus.SUCCESS);
-        onCreditsRefresh?.();
+        let displayResultUrl = imageUrl;
 
         // Auto-save all generated results to gallery (R2 + Supabase)
         if (onGenerationSaved) {
-          for (const url of resultUrls) {
+          for (const [index, url] of resultUrls.entries()) {
             const localFallback: GalleryItem = {
               id: crypto.randomUUID(),
               url,
@@ -178,16 +175,29 @@ export function useGeneration({ onGenerationSaved, onCreditsRefresh }: UseGenera
                 const errBody = await uploadRes.text();
                 console.error('Auto-save upload failed:', uploadRes.status, errBody);
                 onGenerationSaved(localFallback);
+                if (index === 0) {
+                  displayResultUrl = localFallback.url;
+                }
               } else {
                 const saved = await uploadRes.json();
                 onGenerationSaved(saved);
+                if (index === 0 && saved?.url) {
+                  displayResultUrl = saved.url;
+                }
               }
             } catch (e) {
               console.error('Auto-save network error:', e);
               onGenerationSaved(localFallback);
+              if (index === 0) {
+                displayResultUrl = localFallback.url;
+              }
             }
           }
         }
+
+        setResultImage(displayResultUrl);
+        setStatus(AppStatus.SUCCESS);
+        onCreditsRefresh?.();
       } catch (error) {
         console.error(error);
         setErrorMsg(

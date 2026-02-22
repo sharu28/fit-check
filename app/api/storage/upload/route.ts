@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { uploadToR2 } from '@/lib/r2';
 import { applyWatermark } from '@/lib/watermark';
+import { getUserCredits } from '@/lib/credits';
 import sharp from 'sharp';
 
 export async function POST(request: NextRequest) {
@@ -43,13 +44,12 @@ export async function POST(request: NextRequest) {
     // Watermark free-tier generation images
     if (type === 'generation' && !isVideo) {
       try {
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('plan')
-          .eq('id', user.id)
-          .single();
-
-        if (!profile || profile.plan === 'free') {
+        const { plan, isUnlimited } = await getUserCredits(
+          supabase,
+          user.id,
+          user.email,
+        );
+        if (plan === 'free' && !isUnlimited) {
           fileBuffer = Buffer.from(await applyWatermark(fileBuffer));
         }
       } catch (e) {

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Fit Check is a Next.js 15 App Router application with a two-column UI (sidebar + main content). The server handles auth, AI generation orchestration, cloud storage, billing, shared model presets, credit enforcement, and transactional email.
+Fit Check is a Next.js 15 App Router application with a two-column UI (retractable sidebar + main content). The app now has dedicated workspaces for image generation, video generation, templates, assistant, guide, academy, and batch background removal. The server handles auth, AI generation orchestration, cloud storage, billing, shared model presets, credit enforcement, and transactional email.
 
 ## External Services
 
@@ -70,6 +70,11 @@ Every request:
   -> refreshes auth cookies
   -> public routes: /, /auth, /pricing, /api/webhooks/*
   -> all other routes require session
+
+Session persistence:
+  -> browser/server/middleware use long-lived auth cookie options (~1 year)
+  -> browser client uses persistSession + autoRefreshToken
+  -> /auth auto-redirects to /app when an active session already exists
 ```
 
 ## Data Model (Supabase)
@@ -118,6 +123,11 @@ Schema and RLS setup: `docs/model-presets.sql`.
    - Free tier: watermark applied before R2 upload
    - Thumbnail generated via sharp (images only)
 9. Client calls onCreditsRefresh() to update header display
+10. If no generations exist yet in single-swap mode, UI shows a guided 3-step empty state:
+    - Upload garment
+    - Choose subject
+    - Generate
+    with explicit readiness gating in PromptBar
 ```
 
 ## Video Generation Flow
@@ -140,8 +150,8 @@ Credits tracked in: user_profiles.credits_remaining
 Default free tier: 10 credits
 
 Server-side (lib/credits.ts):
-  getUserCredits(supabase, userId) -> { credits, plan }
-  deductCredits(supabase, userId, amount) -> { success, remaining }
+  getUserCredits(supabase, userId, userEmail?) -> { credits, plan, isUnlimited }
+  deductCredits(supabase, userId, amount, userEmail?) -> { success, remaining }
   getImageCreditCost(resolution, count)
   getVideoCreditCost(duration)
 
@@ -149,6 +159,10 @@ API enforcement:
   - /api/generate/image checks + deducts credits
   - /api/generate/video checks + deducts credits
   - Returns 402 { code: 'INSUFFICIENT_CREDITS' } when insufficient
+  - Admin unlimited-credit bypass by email allowlist:
+    - default includes `sharukesh.seker@gmail.com`
+    - configurable via `UNLIMITED_CREDITS_ADMIN_EMAILS`
+  - Admin users return plan `admin` and are exempt from credit deduction
 
 Client enforcement:
   - useGeneration and useVideoGeneration handle 402 responses
@@ -185,6 +199,20 @@ Webhook handling (POST /api/webhooks/polar):
   - Admin-only (email allowlist via `MODEL_PRESET_ADMIN_EMAILS`).
   - Accepts base64 or URL source image.
   - Uploads original + thumbnail to R2 and stores metadata/tags in Supabase.
+
+## Navigation and UX Notes
+
+- Sidebar is retractable (expanded/collapsed states).
+- Main navigation includes:
+  - `Home`
+  - `Image` (dedicated image generation tool)
+  - `Video` (dedicated video generation tool)
+  - `Templates`
+  - `Assistant`
+  - `Guide`
+  - `Academy`
+- Collapsed sidebar uses icons (not text letters).
+- Assistant greeting is time-aware (`Good morning/afternoon/night`) based on user local time.
 
 ## Watermark System
 

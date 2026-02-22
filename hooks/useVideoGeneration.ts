@@ -36,8 +36,9 @@ export function useVideoGeneration({ onVideoSaved, onCreditsRefresh }: UseVideoG
     }
   }, []);
 
-  const generate = useCallback(async () => {
-    if (!prompt.trim()) return 'Please enter a prompt for the video.';
+  const generate = useCallback(async (promptOverride?: string) => {
+    const effectivePrompt = (promptOverride ?? prompt).trim();
+    if (!effectivePrompt) return 'Please enter a prompt for the video.';
 
     setStatus('generating');
     setErrorMsg(null);
@@ -51,7 +52,7 @@ export function useVideoGeneration({ onVideoSaved, onCreditsRefresh }: UseVideoG
           imageInput: referenceImage
             ? { base64: referenceImage.base64, mimeType: referenceImage.mimeType }
             : undefined,
-          prompt,
+          prompt: effectivePrompt,
           aspectRatio,
           duration,
           sound,

@@ -14,14 +14,20 @@ import {
   BookOpen,
   GraduationCap,
   User,
+  Image as ImageIcon,
+  Video,
 } from 'lucide-react';
+import type { ToolMode } from '@/types';
 import { PLAN_CREDITS } from '@/lib/constants';
 
 interface HeaderProps {
   activeSection: 'home' | 'templates' | 'assistant' | 'guide' | 'academy';
+  currentTool: ToolMode;
   isMenuOpen: boolean;
   onToggleMenu: () => void;
   onNavigateHome: () => void;
+  onNavigateImage: () => void;
+  onNavigateVideo: () => void;
   onNavigateTemplates: () => void;
   onNavigateAssistant: () => void;
   onNavigateGuide: () => void;
@@ -34,9 +40,12 @@ interface HeaderProps {
 
 export function Header({
   activeSection,
+  currentTool,
   isMenuOpen,
   onToggleMenu,
   onNavigateHome,
+  onNavigateImage,
+  onNavigateVideo,
   onNavigateTemplates,
   onNavigateAssistant,
   onNavigateGuide,
@@ -63,6 +72,9 @@ export function Header({
     `flex w-full items-center justify-center rounded-xl px-3 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${
       active ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:bg-white hover:text-gray-900'
     }`;
+  const isImageActive = activeSection === 'home' && currentTool === 'style-studio';
+  const isVideoActive = activeSection === 'home' && currentTool === 'video-generator';
+  const isHomeActive = activeSection === 'home' && !isImageActive && !isVideoActive;
 
   return (
     <div className="flex h-full flex-col">
@@ -108,8 +120,14 @@ export function Header({
           {isMenuOpen ? (
             <>
               <div className="rounded-2xl border border-gray-200 bg-gray-50 p-2">
-                <button onClick={onNavigateHome} className={navButtonClass(activeSection === 'home')}>
+                <button onClick={onNavigateHome} className={navButtonClass(isHomeActive)}>
                   Home
+                </button>
+                <button onClick={onNavigateImage} className={`mt-1 ${navButtonClass(isImageActive)}`}>
+                  Image
+                </button>
+                <button onClick={onNavigateVideo} className={`mt-1 ${navButtonClass(isVideoActive)}`}>
+                  Video
                 </button>
                 <button onClick={onNavigateTemplates} className={`mt-1 ${navButtonClass(activeSection === 'templates')}`}>
                   Templates
@@ -139,8 +157,14 @@ export function Header({
             </>
           ) : (
             <div className="space-y-2">
-              <button onClick={onNavigateHome} className={collapsedNavButtonClass(activeSection === 'home')} aria-label="Home" title="Home">
+              <button onClick={onNavigateHome} className={collapsedNavButtonClass(isHomeActive)} aria-label="Home" title="Home">
                 <House size={17} />
+              </button>
+              <button onClick={onNavigateImage} className={collapsedNavButtonClass(isImageActive)} aria-label="Image tool" title="Image">
+                <ImageIcon size={17} />
+              </button>
+              <button onClick={onNavigateVideo} className={collapsedNavButtonClass(isVideoActive)} aria-label="Video tool" title="Video">
+                <Video size={17} />
               </button>
               <button onClick={onNavigateTemplates} className={collapsedNavButtonClass(activeSection === 'templates')} aria-label="Templates" title="Templates">
                 <LayoutTemplate size={17} />

@@ -1,7 +1,7 @@
 import sharp from 'sharp';
 
 /**
- * Generate an SVG overlay with "Fit Check" watermark text.
+ * Generate an SVG overlay with "Fit Check App" watermark text.
  * Scales font size relative to image width.
  */
 function createWatermarkSvg(width: number, height: number): Buffer {
@@ -15,7 +15,7 @@ function createWatermarkSvg(width: number, height: number): Buffer {
       font-weight="bold"
       fill="rgba(255,255,255,0.35)"
       text-anchor="end">
-      Fit Check
+      Fit Check App
     </text>
   </svg>`;
 
@@ -23,7 +23,7 @@ function createWatermarkSvg(width: number, height: number): Buffer {
 }
 
 /**
- * Composite a semi-transparent "Fit Check" watermark onto an image buffer.
+ * Composite a semi-transparent "Fit Check App" watermark onto an image buffer.
  * Returns a new buffer with the watermark applied.
  */
 export async function applyWatermark(imageBuffer: Buffer): Promise<Buffer> {

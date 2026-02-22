@@ -24,6 +24,7 @@ import { AssistantWorkspace } from '@/components/AssistantWorkspace';
 import { GuideWorkspace } from '@/components/GuideWorkspace';
 import { AcademyWorkspace } from '@/components/AcademyWorkspace';
 import { SingleSwapGuide } from '@/components/SingleSwapGuide';
+import { OnboardingWizard } from '@/components/OnboardingWizard';
 import { DEFAULT_PROMPT, MAX_GARMENTS, MAX_FILE_SIZE_BYTES } from '@/lib/constants';
 import { fileToBase64, readFileToDataUrl } from '@/lib/utils';
 import { AppStatus, type UploadedImage, type GenerationMode, type ToolMode, type GalleryItem } from '@/types';
@@ -60,9 +61,35 @@ export default function HomePage() {
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [activeSection, setActiveSection] = useState<'home' | 'templates' | 'assistant' | 'guide' | 'academy'>('templates');
   const [isMenuOpen, setIsMenuOpen] = useState(true);
+  const [showOnboardingWizard, setShowOnboardingWizard] = useState(false);
+  const [onboardingOutput, setOnboardingOutput] = useState<'image' | 'video'>('image');
   const [guideFocusTarget, setGuideFocusTarget] = useState<'garment' | 'subject' | null>(null);
   const subjectSectionRef = useRef<HTMLDivElement | null>(null);
   const garmentSectionRef = useRef<HTMLDivElement | null>(null);
+  const onboardingStorageKey = user?.id ? `fitcheck:onboarding:completed:${user.id}` : null;
+
+  useEffect(() => {
+    if (!onboardingStorageKey) {
+      setShowOnboardingWizard(false);
+      return;
+    }
+
+    let isCompleted = false;
+    try {
+      isCompleted = window.localStorage.getItem(onboardingStorageKey) === '1';
+    } catch {
+      isCompleted = false;
+    }
+
+    if (isCompleted) {
+      setShowOnboardingWizard(false);
+      return;
+    }
+
+    setCurrentTool('style-studio');
+    setActiveSection('home');
+    setShowOnboardingWizard(true);
+  }, [onboardingStorageKey]);
 
   // Gallery
   const gallery = useGallery({ userId: user?.id ?? null });
@@ -275,15 +302,65 @@ export default function HomePage() {
     }
   }, [gallery, addToast]);
 
-  const handleVideoGenerate = useCallback(async () => {
+  const handleVideoGenerate = useCallback(async (promptOverride?: string) => {
     if (credits !== null && credits <= 0) {
       addToast('You are out of credits. Upgrade your plan to continue.', 'error');
       window.location.href = '/pricing';
       return;
     }
-    const err = await video.generate();
+    const err = await video.generate(promptOverride);
     if (err) addToast(err, 'info');
   }, [credits, video, addToast]);
+
+  const completeOnboarding = useCallback(() => {
+    setShowOnboardingWizard(false);
+    if (!onboardingStorageKey) return;
+
+    try {
+      window.localStorage.setItem(onboardingStorageKey, '1');
+    } catch {
+      // Ignore storage failures and continue.
+    }
+  }, [onboardingStorageKey]);
+
+  const buildUploadedImage = useCallback(async (file: File): Promise<UploadedImage | null> => {
+    if (!file.type.startsWith('image/')) {
+      addToast('Please upload an image file.', 'info');
+      return null;
+    }
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      addToast('File is too large. Max size is 20MB.', 'info');
+      return null;
+    }
+
+    const [previewUrl, base64] = await Promise.all([readFileToDataUrl(file), fileToBase64(file)]);
+    return { file, previewUrl, base64, mimeType: file.type };
+  }, [addToast]);
+
+  const handleOnboardingGarmentUpload = useCallback(async (file: File) => {
+    const uploaded = await buildUploadedImage(file);
+    if (!uploaded) return;
+
+    setGarments((prev) => {
+      if (prev.length === 0) return [uploaded];
+      const next = [...prev];
+      next[0] = uploaded;
+      return next;
+    });
+  }, [buildUploadedImage]);
+
+  const handleOnboardingSubjectUpload = useCallback(async (file: File) => {
+    const uploaded = await buildUploadedImage(file);
+    if (!uploaded) return;
+    setPersonImage(uploaded);
+  }, [buildUploadedImage]);
+
+  const handleOnboardingOpenSubjectLibrary = useCallback(() => {
+    setCurrentTool('style-studio');
+    setActiveSection('home');
+    setShowSubjectModal(true);
+  }, []);
 
   const handleUseTemplate = useCallback((template: TemplateOption) => {
     if (template.targetTool === 'style-studio') {
@@ -306,6 +383,16 @@ export default function HomePage() {
     setActiveSection('home');
   }, []);
 
+  const navigateImage = useCallback(() => {
+    setCurrentTool('style-studio');
+    setActiveSection('home');
+  }, []);
+
+  const navigateVideo = useCallback(() => {
+    setCurrentTool('video-generator');
+    setActiveSection('home');
+  }, []);
+
   const navigateTemplates = useCallback(() => {
     setActiveSection('templates');
   }, []);
@@ -325,12 +412,65 @@ export default function HomePage() {
   const hasSubject = Boolean(personImage);
   const hasGarment = garments.length > 0;
   const canGenerateFromInputs = hasSubject && hasGarment;
+
+  const handleOnboardingGenerate = useCallback(async () => {
+    if (!hasGarment) {
+      addToast('Please upload a garment first.', 'info');
+      return;
+    }
+    if (!hasSubject) {
+      addToast('Please choose a subject first.', 'info');
+      return;
+    }
+    if (credits !== null && credits <= 0) {
+      addToast('You are out of credits. Upgrade your plan to continue.', 'error');
+      window.location.href = '/pricing';
+      return;
+    }
+
+    setActiveSection('home');
+
+    if (onboardingOutput === 'video') {
+      setCurrentTool('video-generator');
+      const onboardingVideoPrompt = 'Create a short fashion showcase video highlighting outfit details and movement.';
+      if (!video.prompt.trim()) {
+        video.setPrompt(onboardingVideoPrompt);
+      }
+      if (!video.referenceImage && personImage) {
+        video.setReferenceImage(personImage);
+      }
+      completeOnboarding();
+      await handleVideoGenerate(video.prompt.trim() ? undefined : onboardingVideoPrompt);
+      return;
+    }
+
+    setCurrentTool('style-studio');
+    if (!prompt.trim()) {
+      setPrompt(DEFAULT_PROMPT);
+    }
+    completeOnboarding();
+    handleGenerate();
+  }, [
+    hasGarment,
+    hasSubject,
+    credits,
+    onboardingOutput,
+    video,
+    personImage,
+    completeOnboarding,
+    handleVideoGenerate,
+    prompt,
+    handleGenerate,
+    addToast,
+  ]);
+
   const showSingleSwapGuide =
     activeSection === 'home' &&
     currentTool === 'style-studio' &&
     mode === 'single' &&
     !gallery.showLibrary &&
     !canGenerateFromInputs &&
+    !showOnboardingWizard &&
     generation.status !== AppStatus.GENERATING;
 
   // Auth loading state
@@ -363,9 +503,12 @@ export default function HomePage() {
       >
         <Header
           activeSection={activeSection}
+          currentTool={currentTool}
           isMenuOpen={isMenuOpen}
           onToggleMenu={() => setIsMenuOpen((prev) => !prev)}
           onNavigateHome={navigateHome}
+          onNavigateImage={navigateImage}
+          onNavigateVideo={navigateVideo}
           onNavigateTemplates={navigateTemplates}
           onNavigateAssistant={navigateAssistant}
           onNavigateGuide={navigateGuide}
@@ -582,6 +725,23 @@ export default function HomePage() {
           </>
         )}
       </main>
+
+      <OnboardingWizard
+        isOpen={showOnboardingWizard}
+        hasGarment={hasGarment}
+        hasSubject={hasSubject}
+        garmentPreviewUrl={garments[0]?.previewUrl}
+        subjectPreviewUrl={personImage?.previewUrl}
+        selectedOutput={onboardingOutput}
+        onOutputChange={setOnboardingOutput}
+        onUploadGarment={handleOnboardingGarmentUpload}
+        onUploadSubject={handleOnboardingSubjectUpload}
+        onOpenSubjectLibrary={handleOnboardingOpenSubjectLibrary}
+        onGenerate={() => {
+          void handleOnboardingGenerate();
+        }}
+        onSkip={completeOnboarding}
+      />
 
       {/* Subject Selection Modal */}
       <SubjectModal

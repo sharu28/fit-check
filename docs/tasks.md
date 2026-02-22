@@ -1,145 +1,112 @@
-# Tasks — Done and TODO
+# Tasks - Done and TODO
 
 ## Completed
 
+### UX + Navigation (Latest)
+- [x] Added retractable sidebar (expanded + collapsed states)
+- [x] Moved profile/account control to bottom-left area in open menu
+- [x] Added Guide navigation screen
+- [x] Added Academy section for courses and demo videos
+- [x] Added Image and Video menu options as dedicated tool entries
+- [x] Updated collapsed sidebar to icons (no letter placeholders)
+- [x] Added Launch Campaign Video template (routes to video generator)
+- [x] Fixed Template Library scrolling (TemplatesExplorer now scrollable)
+- [x] Added Batch Background Removal screen and template entry
+
+### Single Swap Onboarding UX
+- [x] Added guided empty state for single-swap mode (SingleSwapGuide)
+- [x] Added explicit 3-step progress strip: Upload Garment -> Choose Subject -> Generate
+- [x] Added required input cards with readiness states and actions
+- [x] Added sidebar focus/highlight jump from guide actions
+- [x] Disabled Generate until required garment + subject inputs are present
+- [x] Added clear blocked reason in prompt bar CTA
+
+### Assistant UX
+- [x] Redesigned assistant workspace to match current app visual language
+- [x] Added dynamic greeting by local time (morning / afternoon / night)
+
+### Auth + Session Persistence
+- [x] Added persistent Supabase session cookie options (browser/server/middleware)
+- [x] Added singleton browser Supabase client to prevent session churn
+- [x] Auto-redirect /auth -> /app when an active session exists
+
+### Admin Credits
+- [x] Added unlimited-credits admin bypass in server credit checks/deductions
+- [x] Added admin plan display (Admin | Unlimited) in header
+- [x] Added env support: UNLIMITED_CREDITS_ADMIN_EMAILS
+
 ### Credit Enforcement (Phase 1)
-- [x] Added `credits_remaining` to `UserProfile` type
-- [x] Created `lib/credits.ts` — server-side credit helpers (`getUserCredits`, `deductCredits`, cost calculators)
-- [x] Created `lib/supabase/admin.ts` — service-role Supabase client for webhooks
-- [x] Updated `/api/credits` to read from DB instead of Polar
-- [x] Added credit check + deduction to `/api/generate/image` (returns 402 `INSUFFICIENT_CREDITS`)
-- [x] Added credit check + deduction to `/api/generate/video` (returns 402 `INSUFFICIENT_CREDITS`)
-- [x] Client hooks handle 402 responses and call `onCreditsRefresh`
-- [x] `app/app/page.tsx` checks `credits <= 0` → toast + redirect to `/pricing`
+- [x] Added credits_remaining to UserProfile type
+- [x] Created lib/credits.ts server-side credit helpers
+- [x] Created lib/supabase/admin.ts service-role Supabase client for webhooks
+- [x] Updated /api/credits to read from DB instead of Polar
+- [x] Added credit check + deduction to /api/generate/image (returns 402 INSUFFICIENT_CREDITS)
+- [x] Added credit check + deduction to /api/generate/video (returns 402 INSUFFICIENT_CREDITS)
+- [x] Client hooks handle 402 responses and call onCreditsRefresh
+- [x] app/app/page.tsx checks credits <= 0 and redirects to /pricing
 
 ### Video Persistence (Phase 2)
-- [x] `/api/storage/upload` handles video MIME types (skip thumbnails, .mp4 ext)
-- [x] `/api/gallery` returns three categories: uploads, generations, videos
-- [x] `useGallery` manages videos state with `addVideo` and `deleteVideo`
-- [x] `useVideoGeneration` persists videos to R2 after generation, calls `onVideoSaved`
-- [x] `Gallery.tsx` has "My Videos" tab with inline play, download, delete
+- [x] /api/storage/upload handles video MIME types (skip thumbnails, .mp4 ext)
+- [x] /api/gallery returns uploads, generations, and videos
+- [x] useGallery manages videos state with addVideo and deleteVideo
+- [x] useVideoGeneration persists videos to R2 after generation, calls onVideoSaved
+- [x] Gallery has My Videos tab with inline play, download, delete
 
 ### Polar Billing Preparation (Phase 3)
-- [x] `/api/webhooks/polar` wired to DB updates (subscription create/cancel, order paid, customer link)
-- [x] Created `/api/billing/checkout` — maps plan to product ID, creates Polar checkout (503 if unconfigured)
-- [x] Created `/api/billing/portal` — creates Polar customer session
-- [x] `pricing/page.tsx` wired to checkout API with subscribe + top-up buttons
+- [x] /api/webhooks/polar wired to DB updates (subscription create/cancel, order paid, customer link)
+- [x] Created /api/billing/checkout (503 if product IDs unconfigured)
+- [x] Created /api/billing/portal
+- [x] pricing/page.tsx wired to checkout API with subscribe + top-up buttons
 
 ### Polish & Cleanup (Phase 4)
-- [x] Removed dead code: `GenerationRecord`, `AppStatus.ANALYZING`, `dataURLToFile()`, `createThumbnail()`
-- [x] Fixed `DEFAULT_PROMPT` to be gender/ethnicity neutral
-- [x] R2 hostname read from `R2_PUBLIC_DOMAIN` env var instead of hardcoded
-- [x] Polling timeout: image generation ~6 min (120 × 3s), video ~10 min (120 × 5s)
-- [x] Auth check added to `/api/download`
-- [x] Free-tier watermark on generation images (`lib/watermark.ts` + `storage/upload`)
-- [x] Removed unused `galleryId` from `/api/generate/remove-bg`
-- [x] Removed unused `videoUrl` prop from `VideoGenerator`
-- [x] Fixed `useVideoGeneration` dependency array (added `onCreditsRefresh`, `onVideoSaved`)
-- [x] Type-check passes (`npx tsc --noEmit`)
-- [x] Updated CLAUDE.md, architecture.md, patterns.md
+- [x] Removed dead code: GenerationRecord, AppStatus.ANALYZING, dataURLToFile(), createThumbnail()
+- [x] Fixed DEFAULT_PROMPT to be gender/ethnicity neutral
+- [x] R2 hostname read from R2_PUBLIC_DOMAIN env var
+- [x] Polling timeout: image ~6 min (120 x 3s), video ~10 min (120 x 5s)
+- [x] Auth check added to /api/download
+- [x] Free-tier watermark on generation images (lib/watermark.ts + storage/upload)
+- [x] Removed unused galleryId from /api/generate/remove-bg
+- [x] Removed unused videoUrl prop from VideoGenerator
+- [x] Fixed useVideoGeneration dependency array
+- [x] Type-check passes (npx tsc --noEmit)
+- [x] Updated docs (CLAUDE.md, architecture.md, patterns.md)
 
 ---
 
-## TODO — Pending
+## TODO - Pending
 
-### CRITICAL: Database Migration
-The `user_profiles` table must be created in Supabase before credits work. Run this SQL in the Supabase SQL editor (or via MCP):
+### Critical: Supabase OAuth Provider Setup
+- [ ] Enable Google provider in Supabase Auth -> Providers
+- [ ] Configure Google OAuth client ID/secret in Supabase
+- [ ] Add redirect URLs for local and production callbacks
+- [ ] Validate end-to-end Google sign-in flow
 
-```sql
--- Create user_profiles table
-CREATE TABLE IF NOT EXISTS public.user_profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  polar_customer_id TEXT,
-  plan TEXT NOT NULL DEFAULT 'free',
-  credits_remaining INTEGER NOT NULL DEFAULT 10,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- Enable RLS
-ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
-
--- RLS policies
-CREATE POLICY "Users can read own profile"
-  ON public.user_profiles FOR SELECT
-  USING (auth.uid() = id);
-
-CREATE POLICY "Users can update own profile"
-  ON public.user_profiles FOR UPDATE
-  USING (auth.uid() = id)
-  WITH CHECK (auth.uid() = id);
-
-CREATE POLICY "Service role full access"
-  ON public.user_profiles
-  USING (auth.role() = 'service_role');
-
--- Auto-create profile on signup
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.user_profiles (id) VALUES (NEW.id);
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
--- Atomic credit deduction (prevents race conditions)
-CREATE OR REPLACE FUNCTION public.deduct_credits(p_user_id UUID, p_amount INTEGER)
-RETURNS JSON AS $$
-DECLARE v_current INTEGER;
-BEGIN
-  SELECT credits_remaining INTO v_current
-    FROM public.user_profiles WHERE id = p_user_id FOR UPDATE;
-  IF v_current IS NULL THEN
-    RETURN json_build_object('success', false, 'remaining', 0);
-  END IF;
-  IF v_current < p_amount THEN
-    RETURN json_build_object('success', false, 'remaining', v_current);
-  END IF;
-  UPDATE public.user_profiles
-    SET credits_remaining = credits_remaining - p_amount, updated_at = NOW()
-    WHERE id = p_user_id;
-  RETURN json_build_object('success', true, 'remaining', v_current - p_amount);
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Add credits (for Polar webhook top-ups)
-CREATE OR REPLACE FUNCTION public.add_credits(p_customer_id TEXT, p_amount INTEGER)
-RETURNS VOID AS $$
-BEGIN
-  UPDATE public.user_profiles
-    SET credits_remaining = credits_remaining + p_amount, updated_at = NOW()
-    WHERE polar_customer_id = p_customer_id;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-```
-
-After creating the table, manually insert a profile for any existing users:
-```sql
-INSERT INTO public.user_profiles (id)
-SELECT id FROM auth.users
-ON CONFLICT (id) DO NOTHING;
-```
+### Critical: Database Migration Validation
+- [ ] Confirm user_profiles table + RPCs exist in production
+- [ ] Backfill profiles for any existing auth.users rows
+- [ ] Validate RLS and service role access in production
 
 ### Polar Billing Setup
 - [ ] Create products in Polar dashboard (Pro, Premium, top-up packs)
-- [ ] Set env vars: `POLAR_PRO_PRODUCT_ID`, `POLAR_PREMIUM_PRODUCT_ID`, `POLAR_TOPUP_50_PRODUCT_ID`, `POLAR_TOPUP_150_PRODUCT_ID`, `POLAR_TOPUP_500_PRODUCT_ID`
-- [ ] Set `SUPABASE_SERVICE_ROLE_KEY` env var in production
-- [ ] Test webhook flow end-to-end (subscribe → credits updated → portal works)
+- [ ] Set env vars: POLAR_PRO_PRODUCT_ID, POLAR_PREMIUM_PRODUCT_ID, POLAR_TOPUP_50_PRODUCT_ID, POLAR_TOPUP_150_PRODUCT_ID, POLAR_TOPUP_500_PRODUCT_ID
+- [ ] Set SUPABASE_SERVICE_ROLE_KEY env var in production
+- [ ] Test webhook flow end-to-end (subscribe -> credits updated -> portal works)
 
-### Env Vars to Add
-- [ ] `SUPABASE_SERVICE_ROLE_KEY` — needed by `lib/supabase/admin.ts` for webhook handlers
-- [ ] `R2_PUBLIC_DOMAIN` — used by `next.config.ts` for image hostname (currently has hardcoded fallback)
-- [ ] `POLAR_*_PRODUCT_ID` — billing product IDs (checkout returns 503 without these)
+### Reliability and Visibility
+- [ ] Add explicit per-item save status for generated image/video uploads
+- [ ] Add retry-save action when /api/storage/upload fails
+- [ ] Add lightweight telemetry for gallery persistence failures
 
 ### Nice-to-Have
-- [x] Password reset flow — inline on auth page (mode toggle: login / signup / reset)
 - [ ] Add OAuth buttons beyond Google (GitHub, Apple)
-- [x] PromptBar disable Generate button when `credits === 0`
-- [x] VideoGenerator disable Generate button when `credits === 0`
 - [ ] Email notification when credits run low
 - [ ] Admin dashboard for credit management
+
+---
+
+## Next (Recommended Order)
+
+1. Fix Google provider setup in Supabase so OAuth sign-in works.
+2. Add save-status + retry on generation persistence so users never lose visibility of outputs.
+3. Complete Polar product/env setup and run billing webhook E2E tests.
+4. Build a minimal admin credit operations page (view + adjust balances with audit log).

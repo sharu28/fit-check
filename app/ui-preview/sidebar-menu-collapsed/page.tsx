@@ -6,6 +6,7 @@ import { Header } from '@/components/Header';
 export default function SidebarMenuCollapsedPreviewPage() {
   const [activeSection, setActiveSection] = useState<'home' | 'templates' | 'assistant' | 'guide' | 'academy'>('templates');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [currentTool, setCurrentTool] = useState<'style-studio' | 'video-generator' | 'bg-remover'>('style-studio');
 
   return (
     <div className="min-h-screen bg-gray-100 p-3 md:p-6">
@@ -13,9 +14,18 @@ export default function SidebarMenuCollapsedPreviewPage() {
         <aside className={`border-r border-gray-200 bg-white transition-all ${isMenuOpen ? 'w-80' : 'w-[78px]'}`}>
           <Header
             activeSection={activeSection}
+            currentTool={currentTool}
             isMenuOpen={isMenuOpen}
             onToggleMenu={() => setIsMenuOpen((prev) => !prev)}
             onNavigateHome={() => setActiveSection('home')}
+            onNavigateImage={() => {
+              setCurrentTool('style-studio');
+              setActiveSection('home');
+            }}
+            onNavigateVideo={() => {
+              setCurrentTool('video-generator');
+              setActiveSection('home');
+            }}
             onNavigateTemplates={() => setActiveSection('templates')}
             onNavigateAssistant={() => setActiveSection('assistant')}
             onNavigateGuide={() => setActiveSection('guide')}

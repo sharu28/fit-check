@@ -221,7 +221,7 @@ export function ResultDisplay({
         {generations.map((item) => (
           <ImageCard
             key={item.id}
-            url={item.thumbnailUrl || item.url}
+            url={item.url}
             fullUrl={item.url}
             onDownload={() => downloadImage(item.url)}
             onShare={() => setShareImage(item.url)}
