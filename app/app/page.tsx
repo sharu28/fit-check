@@ -362,22 +362,30 @@ export default function HomePage() {
     setShowSubjectModal(true);
   }, []);
 
+  const pickTemplatePrompt = useCallback((template: TemplateOption) => {
+    const presets = template.presetPrompts?.filter(Boolean) ?? [];
+    if (presets.length === 0) return template.defaultPrompt;
+    const index = Math.floor(Math.random() * presets.length);
+    return presets[index];
+  }, []);
+
   const handleUseTemplate = useCallback((template: TemplateOption) => {
+    const selectedPrompt = pickTemplatePrompt(template);
     if (template.targetTool === 'style-studio') {
-      setPrompt(template.defaultPrompt);
+      setPrompt(selectedPrompt);
       if (template.generationMode) {
         setMode(template.generationMode);
       }
       setCurrentTool('style-studio');
     } else if (template.targetTool === 'video-generator') {
-      video.setPrompt(template.defaultPrompt);
+      video.setPrompt(selectedPrompt);
       setCurrentTool('video-generator');
     } else {
       setCurrentTool('bg-remover');
     }
     setActiveSection('home');
     addToast(`${template.title} loaded. Customize and generate when ready.`, 'success');
-  }, [video, addToast]);
+  }, [pickTemplatePrompt, video, addToast]);
 
   const navigateHome = useCallback(() => {
     setActiveSection('home');

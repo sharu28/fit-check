@@ -23,10 +23,74 @@ export interface TemplateOption {
   format: 'image' | 'video' | 'mixed';
   description: string;
   defaultPrompt: string;
+  presetPrompts?: string[];
   targetTool: 'style-studio' | 'video-generator' | 'bg-remover';
   generationMode?: GenerationMode;
   accentClass: string;
 }
+
+const TEMPLATE_PROMPT_PRESETS: Record<string, string[]> = {
+  'single-swap': [
+    'Replace the subject outfit with the provided garment. Keep face, pose, and body proportions unchanged. Preserve garment texture, stitching, and print details in a realistic full-body fashion photo.',
+    'Apply the uploaded clothing item to the subject naturally, matching lighting and shadows. Keep identity and anatomy consistent, with clean ecommerce-ready framing.',
+    'Dress the model in the provided garment with photoreal accuracy. Maintain original background context, sharp fabric detail, and natural drape across the body.',
+  ],
+  'multi-shot': [
+    'Create a 2x2 fashion panel using the provided garments. Show distinct styling variations in each quadrant while keeping the same model identity and consistent studio lighting.',
+    'Generate a multi-look contact sheet: four outfits, one model, clear separation per frame. Preserve garment details and balanced composition for comparison.',
+    'Produce a clean 2x2 try-on board with four coordinated looks from the garment set. Keep pose and facial realism strong and each panel visually legible.',
+  ],
+  'website-shoot': [
+    'Create a polished ecommerce hero image with premium studio lighting, centered composition, and accurate garment detail for homepage use.',
+    'Generate a high-conversion storefront visual: crisp subject focus, clean background separation, and premium catalog styling.',
+    'Produce a website-ready fashion shot with balanced contrast, natural skin tones, and sharp product texture suitable for brand landing pages.',
+  ],
+  'social-campaign': [
+    'Create a social campaign key visual with bold framing, modern color energy, and scroll-stopping composition optimized for feeds and stories.',
+    'Generate platform-native campaign creative that feels trendy and premium, with expressive styling and strong subject focus.',
+    'Design an Instagram-first campaign frame with high visual punch, fashion-forward direction, and clear product storytelling.',
+  ],
+  'product-ads': [
+    'Design a performance ad visual emphasizing product fit, texture, and silhouette with conversion-focused composition and clean brand presentation.',
+    'Generate a paid-social ready fashion ad frame with clear CTA space, strong product readability, and premium lighting.',
+    'Create a high-intent ad creative that highlights garment detail and value, optimized for click-through and catalog consistency.',
+  ],
+  'launch-campaign-video': [
+    'Create a cinematic launch video for a new fashion drop with bold reveals, confident camera motion, and premium brand energy.',
+    'Generate a product launch reel with dramatic pacing, hero close-ups, and social-ready moments that announce a new collection.',
+    'Produce a high-impact announcement video with dynamic transitions, fashion storytelling, and conversion-focused final frames.',
+  ],
+  'remove-background-batch': [
+    'Remove image backgrounds cleanly while preserving fine garment edges, transparency in hair strands, and natural contours.',
+    'Create transparent cutouts with precise edge detection for apparel images, minimizing halos and retaining fabric detail.',
+    'Batch-remove backgrounds for product photos with crisp silhouettes and export-ready transparent outputs.',
+  ],
+  'rotation-360': [
+    'Generate a smooth 360-degree product showcase video with consistent speed, stable framing, and clean studio lighting.',
+    'Create a full-angle rotation clip that highlights garment construction and texture from front, side, and back views.',
+    'Produce a premium turntable-style fashion rotation with minimal jitter and clear detail visibility throughout.',
+  ],
+  'lookbook-editorial': [
+    'Create an editorial lookbook frame with high-fashion styling, dramatic but clean lighting, and premium magazine-grade composition.',
+    'Generate a runway-inspired lookbook visual with art-direction polish, strong silhouette emphasis, and luxury tone.',
+    'Design a seasonal editorial shot with intentional mood, elevated styling, and refined color grading.',
+  ],
+  'ugc-reels': [
+    'Generate a UGC-style fashion reel with natural movement, creator-friendly framing, and authentic social pacing.',
+    'Create a handheld-style short video that feels real and relatable while clearly showcasing fit, texture, and movement.',
+    'Produce a TikTok-ready outfit reel with engaging cuts, natural expressions, and product-first storytelling.',
+  ],
+  'seasonal-drop': [
+    'Create a seasonal campaign visual for a new collection drop with festive mood, cohesive styling, and launch-ready polish.',
+    'Generate a limited-time drop creative with strong atmosphere, timely color direction, and clear product storytelling.',
+    'Design a holiday/seasonal fashion launch frame with premium art direction and social-commerce readiness.',
+  ],
+  'marketplace-listings': [
+    'Create a marketplace-compliant product image with neutral background, accurate garment colors, and clear front-facing visibility.',
+    'Generate a clean listing photo optimized for catalog standards: minimal distractions, true-to-life texture, and consistent framing.',
+    'Produce a conversion-ready marketplace image with precise product representation and platform-friendly composition.',
+  ],
+};
 
 const TEMPLATE_OPTIONS: TemplateOption[] = [
   {
@@ -35,7 +99,8 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     category: 'tryon',
     format: 'image',
     description: 'Try one garment on a model in a clean single-look output.',
-    defaultPrompt: 'Dress the person in the provided garment, maintaining their natural appearance.',
+    defaultPrompt: TEMPLATE_PROMPT_PRESETS['single-swap'][0],
+    presetPrompts: TEMPLATE_PROMPT_PRESETS['single-swap'],
     targetTool: 'style-studio',
     generationMode: 'single',
     accentClass: 'from-sky-200 via-blue-200 to-indigo-200',
@@ -46,7 +111,8 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     category: 'tryon',
     format: 'image',
     description: 'Generate a 2x2 set showing multiple outfit looks in one output.',
-    defaultPrompt: 'Dress the person in the provided garments and present each look clearly.',
+    defaultPrompt: TEMPLATE_PROMPT_PRESETS['multi-shot'][0],
+    presetPrompts: TEMPLATE_PROMPT_PRESETS['multi-shot'],
     targetTool: 'style-studio',
     generationMode: 'panel',
     accentClass: 'from-violet-200 via-fuchsia-200 to-pink-200',
@@ -57,7 +123,8 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     category: 'website',
     format: 'image',
     description: 'Crisp storefront-ready model shots with clean composition.',
-    defaultPrompt: 'Create polished ecommerce hero images with studio lighting and clean framing.',
+    defaultPrompt: TEMPLATE_PROMPT_PRESETS['website-shoot'][0],
+    presetPrompts: TEMPLATE_PROMPT_PRESETS['website-shoot'],
     targetTool: 'style-studio',
     generationMode: 'single',
     accentClass: 'from-slate-200 via-slate-300 to-zinc-200',
@@ -68,7 +135,8 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     category: 'social',
     format: 'mixed',
     description: 'Platform-first visuals tailored for feeds, reels, and stories.',
-    defaultPrompt: 'Generate bold campaign visuals with social-first framing, energetic styling, and trend-driven composition.',
+    defaultPrompt: TEMPLATE_PROMPT_PRESETS['social-campaign'][0],
+    presetPrompts: TEMPLATE_PROMPT_PRESETS['social-campaign'],
     targetTool: 'style-studio',
     generationMode: 'single',
     accentClass: 'from-indigo-300 via-fuchsia-300 to-rose-300',
@@ -79,7 +147,8 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     category: 'ads',
     format: 'mixed',
     description: 'Conversion-focused ad-ready frames with premium product emphasis.',
-    defaultPrompt: 'Design ad-ready fashion visuals that highlight garment details and conversion-focused composition.',
+    defaultPrompt: TEMPLATE_PROMPT_PRESETS['product-ads'][0],
+    presetPrompts: TEMPLATE_PROMPT_PRESETS['product-ads'],
     targetTool: 'style-studio',
     generationMode: 'single',
     accentClass: 'from-amber-200 via-orange-200 to-red-200',
@@ -90,7 +159,8 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     category: 'social',
     format: 'video',
     description: 'Create high-impact launch videos for product drops and brand announcements.',
-    defaultPrompt: 'Create a launch campaign video with cinematic pacing, bold reveal moments, and conversion-focused messaging for a new fashion drop.',
+    defaultPrompt: TEMPLATE_PROMPT_PRESETS['launch-campaign-video'][0],
+    presetPrompts: TEMPLATE_PROMPT_PRESETS['launch-campaign-video'],
     targetTool: 'video-generator',
     accentClass: 'from-rose-200 via-orange-200 to-amber-200',
   },
@@ -100,7 +170,8 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     category: 'background',
     format: 'image',
     description: 'Drop multiple photos and get transparent PNG cutouts in one batch.',
-    defaultPrompt: 'Remove image backgrounds while preserving clean garment edges and details.',
+    defaultPrompt: TEMPLATE_PROMPT_PRESETS['remove-background-batch'][0],
+    presetPrompts: TEMPLATE_PROMPT_PRESETS['remove-background-batch'],
     targetTool: 'bg-remover',
     accentClass: 'from-cyan-200 via-blue-200 to-slate-200',
   },
@@ -110,7 +181,8 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     category: 'rotation',
     format: 'video',
     description: 'Show garments from every angle with smooth rotational camera movement.',
-    defaultPrompt: 'Create a smooth 360-degree product showcase rotation with clean lighting and consistent pace.',
+    defaultPrompt: TEMPLATE_PROMPT_PRESETS['rotation-360'][0],
+    presetPrompts: TEMPLATE_PROMPT_PRESETS['rotation-360'],
     targetTool: 'video-generator',
     accentClass: 'from-emerald-200 via-teal-200 to-cyan-200',
   },
@@ -120,7 +192,8 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     category: 'lookbook',
     format: 'image',
     description: 'High-fashion editorial layouts for seasonal collections.',
-    defaultPrompt: 'Create an editorial lookbook aesthetic with intentional styling, dramatic lighting, and premium art direction.',
+    defaultPrompt: TEMPLATE_PROMPT_PRESETS['lookbook-editorial'][0],
+    presetPrompts: TEMPLATE_PROMPT_PRESETS['lookbook-editorial'],
     targetTool: 'style-studio',
     generationMode: 'single',
     accentClass: 'from-violet-200 via-fuchsia-200 to-pink-200',
@@ -131,7 +204,8 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     category: 'social',
     format: 'video',
     description: 'Authentic creator-style clips built for engagement and retention.',
-    defaultPrompt: 'Generate a UGC-style fashion reel with natural motion, creator framing, and social-native pacing.',
+    defaultPrompt: TEMPLATE_PROMPT_PRESETS['ugc-reels'][0],
+    presetPrompts: TEMPLATE_PROMPT_PRESETS['ugc-reels'],
     targetTool: 'video-generator',
     accentClass: 'from-blue-200 via-indigo-200 to-purple-200',
   },
@@ -141,7 +215,8 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     category: 'seasonal',
     format: 'mixed',
     description: 'Holiday and campaign-ready concepts for launch windows.',
-    defaultPrompt: 'Generate seasonal launch visuals with cohesive art direction and campaign storytelling.',
+    defaultPrompt: TEMPLATE_PROMPT_PRESETS['seasonal-drop'][0],
+    presetPrompts: TEMPLATE_PROMPT_PRESETS['seasonal-drop'],
     targetTool: 'style-studio',
     generationMode: 'single',
     accentClass: 'from-rose-200 via-red-200 to-amber-200',
@@ -152,7 +227,8 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     category: 'marketplace',
     format: 'image',
     description: 'Clean listing-compliant assets for marketplaces and catalogs.',
-    defaultPrompt: 'Create compliant product listing images with neutral backgrounds and accurate garment detail.',
+    defaultPrompt: TEMPLATE_PROMPT_PRESETS['marketplace-listings'][0],
+    presetPrompts: TEMPLATE_PROMPT_PRESETS['marketplace-listings'],
     targetTool: 'style-studio',
     generationMode: 'single',
     accentClass: 'from-zinc-200 via-stone-200 to-neutral-300',
