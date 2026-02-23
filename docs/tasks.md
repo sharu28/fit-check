@@ -44,6 +44,8 @@
 - [x] Watermark enforced for free generation images (`Fit Check App` label)
 - [x] `/api/storage/upload` now errors and cleans up R2 objects when metadata insert fails
 - [x] `/api/gallery` includes recovery path that can rebuild metadata rows from current-user R2 prefix when DB is empty
+- [x] Foldered gallery organization: create/rename/delete folders + nested subfolders
+- [x] Move images/videos between folders, including root (`All Items`)
 
 ### Strategic Foundations
 - [x] Added `brand_dna` field to `user_profiles` (migration scaffold)

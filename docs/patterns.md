@@ -96,15 +96,22 @@ Write path (`/api/storage/upload`):
 
 - Upload file to R2.
 - Create optional thumbnail for images.
-- Insert metadata row into `gallery_items`.
+- Insert metadata row into `gallery_items` (with optional `folder_id`).
 - If metadata insert fails, cleanup uploaded R2 objects and return error.
 
 Read path (`/api/gallery`):
 
-- Query `gallery_items` by `user_id`.
+- Query `gallery_items` and `gallery_folders` by `user_id`.
 - If empty, attempt metadata recovery from current user R2 prefix and upsert rows.
 
 Key principle: UI gallery is metadata-driven (`gallery_items` is source of truth).
+
+## Gallery Folder Pattern
+
+- Folders are stored in `gallery_folders` with optional `parent_id` for subfolders.
+- Folder deletion removes folder/subfolders and moves affected items back to root (`folder_id = null`).
+- Item organization uses explicit move API (`POST /api/gallery/items/move`) to avoid accidental cross-user writes.
+- Upload API accepts `folderId` so new uploads can be saved directly into the active folder.
 
 ## Watermark Pattern
 

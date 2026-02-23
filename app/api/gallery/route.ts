@@ -35,6 +35,7 @@ async function recoverGalleryItemsFromR2(supabase: Awaited<ReturnType<typeof cre
     thumbnail_url: string | null;
     mime_type: string;
     type: 'upload' | 'generation' | 'video';
+    folder_id: string | null;
     created_at: string;
   }> = [];
 
@@ -63,6 +64,7 @@ async function recoverGalleryItemsFromR2(supabase: Awaited<ReturnType<typeof cre
       thumbnail_url: thumbnailUrl,
       mime_type: inferMimeType(extension, type),
       type,
+      folder_id: null,
       created_at: (object.lastModified ?? new Date()).toISOString(),
     });
   }
@@ -125,6 +127,23 @@ export async function GET() {
       }
     }
 
+    const { data: folderRows, error: folderError } = await supabase
+      .from('gallery_folders')
+      .select('id, name, parent_id, created_at, updated_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true });
+
+    if (folderError) {
+      const code = (folderError as { code?: string }).code;
+      if (code !== '42P01') {
+        console.error('Failed to fetch gallery folders:', folderError);
+        return NextResponse.json(
+          { error: 'Failed to fetch gallery folders' },
+          { status: 500 },
+        );
+      }
+    }
+
     const uploads = (items || [])
       .filter((i) => i.type === 'upload')
       .map((i) => ({
@@ -135,6 +154,7 @@ export async function GET() {
         mimeType: i.mime_type,
         timestamp: new Date(i.created_at).getTime(),
         type: 'upload' as const,
+        folderId: i.folder_id ?? null,
       }));
 
     const generations = (items || [])
@@ -147,6 +167,7 @@ export async function GET() {
         mimeType: i.mime_type,
         timestamp: new Date(i.created_at).getTime(),
         type: 'generation' as const,
+        folderId: i.folder_id ?? null,
       }));
 
     const videos = (items || [])
@@ -159,9 +180,18 @@ export async function GET() {
         mimeType: i.mime_type,
         timestamp: new Date(i.created_at).getTime(),
         type: 'video' as const,
+        folderId: i.folder_id ?? null,
       }));
 
-    return NextResponse.json({ uploads, generations, videos });
+    const folders = (folderRows || []).map((folder) => ({
+      id: folder.id,
+      name: folder.name,
+      parentId: folder.parent_id,
+      createdAt: folder.created_at,
+      updatedAt: folder.updated_at,
+    }));
+
+    return NextResponse.json({ uploads, generations, videos, folders });
   } catch (error) {
     console.error('Gallery error:', error);
     return NextResponse.json(

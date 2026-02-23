@@ -18,7 +18,31 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { base64, url, mimeType, type } = body;
+    const { base64, url, mimeType, type, folderId = null } = body;
+
+    if (folderId) {
+      const { data: folder, error: folderError } = await supabase
+        .from('gallery_folders')
+        .select('id')
+        .eq('id', folderId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (folderError) {
+        console.error('Failed to validate folder during upload:', folderError);
+        return NextResponse.json(
+          { error: 'Failed to validate destination folder' },
+          { status: 500 },
+        );
+      }
+
+      if (!folder) {
+        return NextResponse.json(
+          { error: 'Destination folder not found' },
+          { status: 404 },
+        );
+      }
+    }
 
     let fileBuffer: Buffer;
 
@@ -92,6 +116,7 @@ export async function POST(request: NextRequest) {
         thumbnail_url: thumbnailUrl,
         mime_type: mimeType || 'image/jpeg',
         type,
+        folder_id: folderId,
         created_at: new Date(timestamp).toISOString(),
       })
       .select()
@@ -127,6 +152,7 @@ export async function POST(request: NextRequest) {
       mimeType: mimeType || (isVideo ? 'video/mp4' : 'image/jpeg'),
       timestamp,
       type,
+      folderId,
     });
   } catch (error) {
     console.error('Upload error:', error);

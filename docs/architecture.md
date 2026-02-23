@@ -58,9 +58,17 @@ RPCs:
 Metadata table for user media:
 
 - `type`: `upload | generation | video`
-- `user_id`, `url`, `thumbnail_url`, `mime_type`, timestamps
+- `user_id`, `url`, `thumbnail_url`, `mime_type`, `folder_id`, timestamps
 
 Important: frontend gallery is sourced from this table, not directly from R2 listing.
+
+### `gallery_folders`
+
+User-owned folder hierarchy for gallery organization:
+
+- `id`, `user_id`, `name`
+- `parent_id` (nullable, supports nested subfolders)
+- timestamps
 
 ### `model_presets`
 
@@ -146,6 +154,11 @@ If Polar products are not configured, billing routes return `503` and app core s
 | POST | `/api/brand-dna` | Save/update Brand DNA profile |
 | GET | `/api/download` | Authenticated download proxy |
 | GET | `/api/gallery` | List gallery items (+ recovery attempt) |
+| GET | `/api/gallery/folders` | List user folders |
+| POST | `/api/gallery/folders` | Create folder or subfolder |
+| PATCH | `/api/gallery/folders` | Rename folder |
+| DELETE | `/api/gallery/folders` | Delete folder subtree and unassign items to root |
+| POST | `/api/gallery/items/move` | Move an item into/out of a folder |
 | GET | `/api/model-presets` | Search subject presets |
 | POST | `/api/model-presets` | Admin create preset |
 | POST | `/api/generate/image` | Submit image generation tasks |

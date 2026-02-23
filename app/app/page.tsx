@@ -696,10 +696,15 @@ export default function HomePage() {
                   uploads={gallery.uploads}
                   generations={gallery.generations}
                   videos={gallery.videos}
+                  folders={gallery.folders}
                   onSelectUpload={handleGallerySelect}
                   onDelete={gallery.deleteItem}
                   onDeleteVideo={gallery.deleteVideo}
                   onUpload={gallery.directUpload}
+                  onCreateFolder={gallery.createFolder}
+                  onRenameFolder={gallery.renameFolder}
+                  onDeleteFolder={gallery.deleteFolder}
+                  onMoveItem={gallery.moveItem}
                 />
               ) : (
                 <ResultDisplay

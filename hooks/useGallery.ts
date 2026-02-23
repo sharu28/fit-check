@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import type { GalleryItem, UploadedImage } from '@/types';
+import type { GalleryItem, GalleryFolder, UploadedImage } from '@/types';
 import { fileToBase64, readFileToDataUrl } from '@/lib/utils';
 
 interface UseGalleryOptions {
@@ -12,6 +12,7 @@ export function useGallery({ userId }: UseGalleryOptions) {
   const [uploads, setUploads] = useState<GalleryItem[]>([]);
   const [generations, setGenerations] = useState<GalleryItem[]>([]);
   const [videos, setVideos] = useState<GalleryItem[]>([]);
+  const [folders, setFolders] = useState<GalleryFolder[]>([]);
   const [showLibrary, setShowLibrary] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
 
@@ -27,6 +28,7 @@ export function useGallery({ userId }: UseGalleryOptions) {
         setUploads(data.uploads ?? []);
         setGenerations(data.generations ?? []);
         setVideos(data.videos ?? []);
+        setFolders(data.folders ?? []);
       } catch (e) {
         console.error('Failed to load gallery:', e);
       }
@@ -36,7 +38,7 @@ export function useGallery({ userId }: UseGalleryOptions) {
   }, [userId]);
 
   const saveUpload = useCallback(
-    async (image: UploadedImage, saveId: string) => {
+    async (image: UploadedImage, saveId: string, folderId: string | null = null) => {
       setSavingId(saveId);
       try {
         const res = await fetch('/api/storage/upload', {
@@ -46,6 +48,7 @@ export function useGallery({ userId }: UseGalleryOptions) {
             base64: image.base64,
             mimeType: image.mimeType,
             type: 'upload',
+            folderId,
           }),
         });
 
@@ -62,7 +65,7 @@ export function useGallery({ userId }: UseGalleryOptions) {
     [],
   );
 
-  const directUpload = useCallback(async (file: File) => {
+  const directUpload = useCallback(async (file: File, folderId: string | null = null) => {
     try {
       const base64 = await fileToBase64(file);
       const res = await fetch('/api/storage/upload', {
@@ -72,6 +75,7 @@ export function useGallery({ userId }: UseGalleryOptions) {
           base64,
           mimeType: file.type,
           type: 'upload',
+          folderId,
         }),
       });
 
@@ -165,10 +169,126 @@ export function useGallery({ userId }: UseGalleryOptions) {
     [],
   );
 
+  const createFolder = useCallback(
+    async (name: string, parentId: string | null = null) => {
+      const res = await fetch('/api/gallery/folders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, parentId }),
+      });
+
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body.error || 'Failed to create folder');
+      }
+
+      const folder = body.folder as GalleryFolder;
+      setFolders((prev) => [...prev, folder]);
+      return folder;
+    },
+    [],
+  );
+
+  const renameFolder = useCallback(async (id: string, name: string) => {
+    const res = await fetch('/api/gallery/folders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name }),
+    });
+
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(body.error || 'Failed to rename folder');
+    }
+
+    const folder = body.folder as GalleryFolder;
+    setFolders((prev) =>
+      prev.map((current) =>
+        current.id === id ? folder : current,
+      ),
+    );
+    return folder;
+  }, []);
+
+  const deleteFolder = useCallback(async (id: string) => {
+    const res = await fetch('/api/gallery/folders', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(body.error || 'Failed to delete folder');
+    }
+
+    const deletedIds: string[] = Array.isArray(body.deletedIds)
+      ? body.deletedIds
+      : [id];
+    const deletedSet = new Set(deletedIds);
+
+    setFolders((prev) => prev.filter((folder) => !deletedSet.has(folder.id)));
+    setUploads((prev) =>
+      prev.map((item) =>
+        item.folderId && deletedSet.has(item.folderId)
+          ? { ...item, folderId: null }
+          : item,
+      ),
+    );
+    setGenerations((prev) =>
+      prev.map((item) =>
+        item.folderId && deletedSet.has(item.folderId)
+          ? { ...item, folderId: null }
+          : item,
+      ),
+    );
+    setVideos((prev) =>
+      prev.map((item) =>
+        item.folderId && deletedSet.has(item.folderId)
+          ? { ...item, folderId: null }
+          : item,
+      ),
+    );
+
+    return deletedIds;
+  }, []);
+
+  const moveItem = useCallback(
+    async (
+      itemId: string,
+      type: 'upload' | 'generation' | 'video',
+      folderId: string | null,
+    ) => {
+      const res = await fetch('/api/gallery/items/move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId, folderId }),
+      });
+
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body.error || 'Failed to move item');
+      }
+
+      const applyFolder = (item: GalleryItem) =>
+        item.id === itemId ? { ...item, folderId } : item;
+
+      if (type === 'upload') {
+        setUploads((prev) => prev.map(applyFolder));
+      } else if (type === 'generation') {
+        setGenerations((prev) => prev.map(applyFolder));
+      } else {
+        setVideos((prev) => prev.map(applyFolder));
+      }
+    },
+    [],
+  );
+
   return {
     uploads,
     generations,
     videos,
+    folders,
     showLibrary,
     setShowLibrary,
     savingId,
@@ -179,5 +299,9 @@ export function useGallery({ userId }: UseGalleryOptions) {
     addVideo,
     deleteVideo,
     selectGalleryItem,
+    createFolder,
+    renameFolder,
+    deleteFolder,
+    moveItem,
   };
 }

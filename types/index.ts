@@ -34,6 +34,15 @@ export interface GalleryItem {
   mimeType: string;
   timestamp: number;
   type: 'upload' | 'generation' | 'video';
+  folderId?: string | null;
+}
+
+export interface GalleryFolder {
+  id: string;
+  name: string;
+  parentId: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface UserProfile {
