@@ -45,6 +45,11 @@
 - [x] `/api/storage/upload` now errors and cleans up R2 objects when metadata insert fails
 - [x] `/api/gallery` includes recovery path that can rebuild metadata rows from current-user R2 prefix when DB is empty
 
+### Strategic Foundations
+- [x] Added `brand_dna` field to `user_profiles` (migration scaffold)
+- [x] Added authenticated Brand DNA API (`GET/POST /api/brand-dna`)
+- [x] Wired Brand DNA prompt enrichment into `/api/generate/image`
+
 ### Docs and Hygiene
 - [x] Removed screenshot PNG files from `docs/`
 - [x] Updated `docs/architecture.md`

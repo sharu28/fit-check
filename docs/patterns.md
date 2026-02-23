@@ -82,6 +82,14 @@ Client-side:
 
 On `Use Template`, one prompt variant is selected and applied to the target tool.
 
+## Brand DNA Pattern
+
+- Persist per-user brand style memory in `user_profiles.brand_dna` (JSONB).
+- Use authenticated API route (`/api/brand-dna`) for read/update.
+- Normalize user input before save (trim, dedupe, length limits) to keep prompts stable.
+- During image generation, append Brand DNA prompt guidance only when profile has values.
+- If Brand DNA lookup fails, generation should continue without blocking.
+
 ## Storage and Gallery Pattern
 
 Write path (`/api/storage/upload`):

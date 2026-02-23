@@ -41,8 +41,18 @@ export interface UserProfile {
   polar_customer_id: string | null;
   plan: 'free' | 'pro' | 'premium';
   credits_remaining: number;
+  brand_dna?: BrandDnaProfile;
   created_at: string;
   updated_at: string;
+}
+
+export interface BrandDnaProfile {
+  brandName?: string;
+  audience?: string;
+  toneKeywords?: string[];
+  colorPalette?: string[];
+  compositionHints?: string[];
+  negativeKeywords?: string[];
 }
 
 export interface KieTaskStatus {

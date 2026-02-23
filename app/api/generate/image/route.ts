@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { uploadImageToKie, createImageGeneration } from '@/lib/kie';
 import { getImageCreditCost, getUserCredits, deductCredits } from '@/lib/credits';
+import { buildBrandDnaPromptAddendum, normalizeBrandDnaInput } from '@/lib/brand-dna';
 import sharp from 'sharp';
 
 async function buildGarmentPanel(
@@ -167,6 +168,23 @@ export async function POST(request: NextRequest) {
     if (visualStyle) fullPrompt += ` Visual style: ${visualStyle}.`;
     if (mode === 'panel')
       fullPrompt += ' Use the reference garment panel image and show all outfits in a 2x2 multi-shot output.';
+
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('brand_dna')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      console.warn('Failed to load brand DNA for generation:', profileError);
+    } else {
+      const brandDnaAddendum = buildBrandDnaPromptAddendum(
+        normalizeBrandDnaInput(profile?.brand_dna),
+      );
+      if (brandDnaAddendum) {
+        fullPrompt += ` ${brandDnaAddendum}`;
+      }
+    }
 
     // Create kie.ai task
     const imageInputs = [

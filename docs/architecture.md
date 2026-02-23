@@ -44,6 +44,7 @@ The backend handles auth, generation orchestration, credits, storage, gallery me
 - `id` (FK to `auth.users`)
 - `plan`
 - `credits_remaining`
+- `brand_dna` (JSONB style memory profile)
 - `polar_customer_id`
 - timestamps
 
@@ -72,11 +73,12 @@ Shared subject presets (admin-created): label/category/tags + original/thumbnail
 3. Server checks credits and returns `402 INSUFFICIENT_CREDITS` when needed.
 4. Server uploads references to kie.ai.
 5. Server creates N tasks in parallel (N = selected generation count).
-6. Server deducts credits.
-7. Client polls all task IDs concurrently and aggregates progress.
-8. Completed outputs are saved through `/api/storage/upload`.
-9. UI displays saved result URLs and refreshes credits.
-10. Loading UI renders one animated placeholder card per requested generation count.
+6. If the user has Brand DNA saved, server appends normalized Brand DNA guidance to prompt.
+7. Server deducts credits.
+8. Client polls all task IDs concurrently and aggregates progress.
+9. Completed outputs are saved through `/api/storage/upload`.
+10. UI displays saved result URLs and refreshes credits.
+11. Loading UI renders one animated placeholder card per requested generation count.
 
 ## Video Generation Flow
 
@@ -140,6 +142,8 @@ If Polar products are not configured, billing routes return `503` and app core s
 | Method | Route | Purpose |
 |--------|-------|---------|
 | GET | `/api/credits` | Fetch user plan + credits |
+| GET | `/api/brand-dna` | Fetch saved Brand DNA profile |
+| POST | `/api/brand-dna` | Save/update Brand DNA profile |
 | GET | `/api/download` | Authenticated download proxy |
 | GET | `/api/gallery` | List gallery items (+ recovery attempt) |
 | GET | `/api/model-presets` | Search subject presets |
