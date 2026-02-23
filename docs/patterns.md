@@ -1,30 +1,28 @@
 # Coding Patterns and Conventions
 
-## File Organization
+## Project Layout
 
-| Directory | Contents | Runtime |
-|-----------|----------|---------|
-| `components/` | React UI components | Client (`'use client'`) |
-| `hooks/` | Custom React hooks | Client (`'use client'`) |
-| `lib/` | API clients, utilities, constants | Server (except `utils.ts`, `supabase/client.ts`) |
-| `lib/supabase/admin.ts` | Service-role Supabase client | Server only (webhooks) |
-| `types/` | Shared TypeScript models | Shared |
-| `app/api/` | Route handlers | Server |
+| Path | Purpose | Runtime |
+|------|---------|---------|
+| `app/` | App Router pages + API routes | Mixed |
+| `components/` | UI components | Mostly client |
+| `hooks/` | Stateful client logic | Client |
+| `lib/` | Shared utilities, service adapters, constants | Mostly server |
+| `types/` | Shared TypeScript types | Shared |
+| `docs/` | Product/engineering docs | N/A |
 
-## State Management
+## State Pattern
 
-No global state library. Domain state lives in hooks and page-level state:
+No global state library. State is local/page-level and composed via hooks:
 
-- `useAuth` - session/user lifecycle
-- `useGallery` - uploads, saved generations, and videos (CRUD + optimistic delete)
-- `useGeneration` - image generation tasks, polling, progress, autosave, credit refresh
-- `useVideoGeneration` - video generation lifecycle, R2 persistence, credit refresh
-- `useCredits` - plan + credits (reads from /api/credits)
-- `useToast` - notifications
+- `useAuth` - user/session lifecycle
+- `useGallery` - uploads/generations/videos state and CRUD
+- `useGeneration` - image generation polling and autosave
+- `useVideoGeneration` - video generation polling and autosave
+- `useCredits` - plan/credits fetch and refresh
+- `useToast` - transient notifications
 
-## Auth Route Pattern
-
-Protected routes use server Supabase auth checks:
+## Auth Guard Pattern (API)
 
 ```ts
 const supabase = await createClient();
@@ -34,111 +32,87 @@ if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
 ## Credit Enforcement Pattern
 
-Server-side (in API routes):
+Server-side:
 
 ```ts
-import { getImageCreditCost, getUserCredits, deductCredits } from '@/lib/credits';
-
-const creditCost = getImageCreditCost(resolution, numGenerations);
-const { credits } = await getUserCredits(supabase, user.id);
-if (credits < creditCost) {
-  return NextResponse.json(
-    { error: 'Insufficient credits', code: 'INSUFFICIENT_CREDITS', required: creditCost, available: credits },
-    { status: 402 }
-  );
+const { credits, isUnlimited } = await getUserCredits(supabase, user.id, user.email);
+if (!isUnlimited && credits < required) {
+  return NextResponse.json({ error: 'Insufficient credits', code: 'INSUFFICIENT_CREDITS' }, { status: 402 });
 }
-// ... do generation ...
-await deductCredits(supabase, user.id, creditCost);
+await deductCredits(supabase, user.id, required, user.email);
 ```
 
-Client-side (in hooks):
+Client-side:
 
-```ts
-// Handle 402 in fetch response
-if (err.code === 'INSUFFICIENT_CREDITS') throw new Error('INSUFFICIENT_CREDITS');
+- Hooks detect `402` and surface actionable messages.
+- `onCreditsRefresh` runs after successful generation saves.
 
-// After successful generation
-onCreditsRefresh?.();
-```
+## Image Generation Pattern
 
-## Generation Patterns
+- Supports `single` and `panel` modes.
+- `numGenerations` can submit multiple tasks in one request.
+- Client polls each task concurrently.
+- Progress is aggregated.
+- Latest displayed result should prefer saved URL returned by `/api/storage/upload`.
 
-### Image generation request
+## Loading UI Pattern
 
-`/api/generate/image` enforces:
-- `resolution` must be `2K` or `4K`
-- `numGenerations` must be integer `1..4`
-- free plan can request only `1`
-- credit check + deduction
+- During image generation, UI renders one placeholder card per requested generation count.
+- Placeholder cards use the same aspect ratio as result cards.
+- Loader visuals should avoid blocking actions and preserve layout stability.
 
-### Multi-task polling
+## Single Swap UX Pattern
 
-`useGeneration` polls all task IDs concurrently and aggregates progress as average across tasks. Timeout after 120 attempts (~6 min).
+- Single Swap guide remains visible while required inputs are incomplete (including partial states).
+- Guide supports direct garment/subject uploads.
+- Subject library action remains available.
+- Prompt generate action is disabled until required inputs are present.
+- Main Style Studio toolbar exposes quick rerun actions:
+  - `Change Garment`
+  - `Change Subject`
 
-### Video polling
+## Template Pattern
 
-`useVideoGeneration` polls single task at 5s intervals. Timeout after 120 attempts (~10 min). On success, persists video to R2 and adds to gallery.
+`TemplateOption` supports:
 
-### Mode-specific reference handling
+- `defaultPrompt`
+- `presetPrompts` (optional curated prompt variants)
+- `targetTool`
+- `generationMode` (when relevant)
 
-- `single` mode: person image + first garment reference.
-- `panel` mode: person image + server-generated 2x2 garment collage.
+On `Use Template`, one prompt variant is selected and applied to the target tool.
 
-## Subject Preset Pattern
+## Storage and Gallery Pattern
 
-Hardcoded preset images are removed. Subject presets are shared data:
+Write path (`/api/storage/upload`):
 
-- Read via `GET /api/model-presets?q=&category=`
-- Admin create via `POST /api/model-presets`
-- Tags and categories are stored in Supabase table `model_presets`
-- UI search/filter is implemented in `components/SubjectModal.tsx`
+- Upload file to R2.
+- Create optional thumbnail for images.
+- Insert metadata row into `gallery_items`.
+- If metadata insert fails, cleanup uploaded R2 objects and return error.
 
-## Email Pattern
+Read path (`/api/gallery`):
 
-Transactional email delivery uses Resend through `lib/resend.ts`.
-API entrypoint: `POST /api/email/send`.
+- Query `gallery_items` by `user_id`.
+- If empty, attempt metadata recovery from current user R2 prefix and upsert rows.
 
-## Storage Pattern
+Key principle: UI gallery is metadata-driven (`gallery_items` is source of truth).
 
-Uploads, generations, and videos:
-- Original files in R2 (keyed by `{userId}/{type}s/{id}.{ext}`)
-- Optional derived thumbnails in R2 (images only, not videos)
-- Metadata in Supabase (`gallery_items`)
-- Free-tier generation images get watermark before upload
+## Watermark Pattern
 
-Shared model presets:
-- Stored under shared R2 keys
-- Metadata in Supabase (`model_presets`)
+- Applies only to free-tier generation images.
+- Text watermark label: `Fit Check App`.
+- Applied in `/api/storage/upload` before R2 upload.
 
-## Gallery Types
+## Error Handling Pattern
 
-`GalleryItem.type` union: `'upload' | 'generation' | 'video'`
+- API routes return explicit JSON errors with meaningful status codes (`400`, `401`, `402`, `500`).
+- Non-critical derived-step failures (e.g. thumbnail) should degrade gracefully.
+- Critical persistence failures should return errors and not silently succeed.
 
-Gallery tabs:
-- "My Uploads" — user-uploaded images
-- "My Designs" — generated images
-- "My Videos" — generated videos (with inline play, download, delete)
+## UI Quality Gates (for future changes)
 
-## Billing Pattern
-
-Checkout and portal routes return 503 "Billing not configured" if Polar product IDs not set in env vars. This allows the app to function without Polar being fully set up.
-
-Webhook handler (`/api/webhooks/polar`) uses `lib/supabase/admin.ts` (service-role client) since webhooks have no user session.
-
-## Constants
-
-`lib/constants.ts` includes central configuration:
-
-- `SCENE_PRESETS`, `STYLE_PRESETS`
-- `ASPECT_RATIOS`, `RESOLUTIONS` (`2K`, `4K`)
-- `CREDIT_COSTS` — image_2k: 10, image_4k: 16, video_5s: 30, video_10s: 60
-- `PLAN_CREDITS` — free: 10, pro: 100, premium: 500
-- `KIE_MODELS`
-- `MAX_GARMENTS`, `MAX_FILE_SIZE_MB`, `DEFAULT_PROMPT`
-
-## Error Handling
-
-- API routes return JSON with clear status codes (401, 402, 400, 500).
-- 402 with `code: 'INSUFFICIENT_CREDITS'` for credit enforcement.
-- Client hooks surface user-facing errors through toasts/UI state.
-- Non-critical failures (thumbnails, watermarks) degrade gracefully with console.error.
+- Run `npx tsc --noEmit` for UI-impacting work.
+- Capture fresh local screenshots before marking UI work complete.
+- Check no overlap, clipping, or spacing regression on desktop and mobile.
+- Ensure interactive controls have accessible names and visible focus styles.

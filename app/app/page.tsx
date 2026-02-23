@@ -66,6 +66,7 @@ export default function HomePage() {
   const [guideFocusTarget, setGuideFocusTarget] = useState<'garment' | 'subject' | null>(null);
   const subjectSectionRef = useRef<HTMLDivElement | null>(null);
   const garmentSectionRef = useRef<HTMLDivElement | null>(null);
+  const quickGarmentInputRef = useRef<HTMLInputElement | null>(null);
   const onboardingStorageKey = user?.id ? `fitcheck:onboarding:completed:${user.id}` : null;
 
   useEffect(() => {
@@ -356,6 +357,24 @@ export default function HomePage() {
     setPersonImage(uploaded);
   }, [buildUploadedImage]);
 
+  const handleSingleSwapGarmentUpload = useCallback(async (file: File) => {
+    const uploaded = await buildUploadedImage(file);
+    if (!uploaded) return;
+
+    setGarments((prev) => {
+      if (prev.length === 0) return [uploaded];
+      const next = [...prev];
+      next[0] = uploaded;
+      return next;
+    });
+  }, [buildUploadedImage]);
+
+  const handleSingleSwapSubjectUpload = useCallback(async (file: File) => {
+    const uploaded = await buildUploadedImage(file);
+    if (!uploaded) return;
+    setPersonImage(uploaded);
+  }, [buildUploadedImage]);
+
   const handleOnboardingOpenSubjectLibrary = useCallback(() => {
     setCurrentTool('style-studio');
     setActiveSection('home');
@@ -377,6 +396,9 @@ export default function HomePage() {
         setMode(template.generationMode);
       }
       setCurrentTool('style-studio');
+      if (template.generationMode === 'single') {
+        setIsMenuOpen(true);
+      }
     } else if (template.targetTool === 'video-generator') {
       video.setPrompt(selectedPrompt);
       setCurrentTool('video-generator');
@@ -393,6 +415,7 @@ export default function HomePage() {
 
   const navigateImage = useCallback(() => {
     setCurrentTool('style-studio');
+    setMode('single');
     setActiveSection('home');
   }, []);
 
@@ -477,7 +500,6 @@ export default function HomePage() {
     currentTool === 'style-studio' &&
     mode === 'single' &&
     !gallery.showLibrary &&
-    !canGenerateFromInputs &&
     !showOnboardingWizard &&
     generation.status !== AppStatus.GENERATING;
 
@@ -616,24 +638,55 @@ export default function HomePage() {
         ) : currentTool === 'style-studio' ? (
           <>
             {/* Top Bar - Gallery Toggle */}
-            <div className="p-4 flex justify-end gap-2">
-              <button
-                onClick={navigateTemplates}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-              >
-                Templates
-              </button>
-              <button
-                onClick={() => gallery.setShowLibrary(!gallery.showLibrary)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
-                  gallery.showLibrary
-                    ? 'bg-indigo-50 text-indigo-600 border-indigo-200'
-                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                <Images size={16} />
-                Gallery
-              </button>
+            <div className="p-4 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => quickGarmentInputRef.current?.click()}
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                >
+                  Change Garment
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowSubjectModal(true)}
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                >
+                  Change Subject
+                </button>
+                <input
+                  ref={quickGarmentInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) {
+                      void handleSingleSwapGarmentUpload(file);
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={navigateTemplates}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                >
+                  Templates
+                </button>
+                <button
+                  onClick={() => gallery.setShowLibrary(!gallery.showLibrary)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
+                    gallery.showLibrary
+                      ? 'bg-indigo-50 text-indigo-600 border-indigo-200'
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <Images size={16} />
+                  Gallery
+                </button>
+              </div>
             </div>
 
             {/* Result / Gallery Area */}
@@ -653,6 +706,7 @@ export default function HomePage() {
                   status={generation.status}
                   resultImage={generation.resultImage}
                   generations={gallery.generations}
+                  pendingCount={generationCount}
                   progress={generation.progress}
                   onReset={generation.reset}
                   onDelete={(id) => gallery.deleteItem(id, 'generation')}
@@ -665,6 +719,8 @@ export default function HomePage() {
                         hasSubject={hasSubject}
                         garmentPreviewUrl={garments[0]?.previewUrl}
                         subjectPreviewUrl={personImage?.previewUrl}
+                        onUploadGarment={handleSingleSwapGarmentUpload}
+                        onUploadSubject={handleSingleSwapSubjectUpload}
                         onAddGarment={() => focusGuideTarget('garment')}
                         onAddSubject={() => focusGuideTarget('subject')}
                       />

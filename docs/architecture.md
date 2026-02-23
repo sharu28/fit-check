@@ -2,242 +2,155 @@
 
 ## Overview
 
-Fit Check is a Next.js 15 App Router application with a two-column UI (retractable sidebar + main content). The app now has dedicated workspaces for image generation, video generation, templates, assistant, guide, academy, and batch background removal. The server handles auth, AI generation orchestration, cloud storage, billing, shared model presets, credit enforcement, and transactional email.
+Fit Check is a Next.js 15 App Router app with a two-column workspace layout (retractable sidebar + main canvas).
+Core surfaces:
+
+- Image tool (Style Studio)
+- Video tool
+- Templates library
+- Assistant
+- Guide
+- Academy
+- Bulk background remover
+- First-run onboarding wizard
+- In-canvas Single Swap guide
+
+The backend handles auth, generation orchestration, credits, storage, gallery metadata, billing hooks, and shared model presets.
 
 ## External Services
 
 | Service | Purpose | Client |
 |---------|---------|--------|
-| **Supabase** | Auth (password + Google OAuth) + PostgreSQL | `lib/supabase/` |
-| **kie.ai** | Image generation (Nano Banana Pro), video generation (Kling 2.6) | `lib/kie.ts` |
-| **Pixian.ai** | Background removal | `lib/pixian.ts` |
-| **Cloudflare R2** | Blob storage for uploads, generations, videos, and shared presets | `lib/r2.ts` |
-| **Polar.sh** | Credit and subscription billing | `lib/polar.ts` |
-| **Resend** | Transactional email sending | `lib/resend.ts` |
-| **PostHog** | Product analytics (pageview/pageleave + identify) | `components/PostHogProvider.tsx` |
-| **Google Analytics** | Page analytics | `app/layout.tsx` |
+| Supabase | Auth + Postgres | `lib/supabase/` |
+| kie.ai | Image + video generation | `lib/kie.ts` |
+| Pixian.ai | Background removal | `lib/pixian.ts` |
+| Cloudflare R2 | Blob/object storage | `lib/r2.ts` |
+| Polar.sh | Billing + subscriptions | `lib/polar.ts` |
+| Resend | Transactional email | `lib/resend.ts` |
+| PostHog | Product analytics | `components/PostHogProvider.tsx` |
+| Google Analytics | Page analytics | `app/layout.tsx` |
 
-## App Router Structure
+## Auth and Session
 
-```
-app/
-  layout.tsx
-  page.tsx
-  globals.css
+- Middleware refreshes Supabase session cookies on requests.
+- Non-public routes require session.
+- Browser + server clients use long-lived cookie/session settings.
+- `/auth` auto-redirects to `/app` if session already exists.
 
-  auth/
-    page.tsx
-    callback/route.ts
-
-  app/
-    page.tsx
-
-  pricing/
-    page.tsx
-
-  api/
-    billing/
-      checkout/route.ts
-      portal/route.ts
-    credits/route.ts
-    download/route.ts
-    email/
-      send/route.ts
-    gallery/route.ts
-    model-presets/route.ts
-    generate/
-      image/route.ts
-      video/route.ts
-      status/route.ts
-      remove-bg/route.ts
-    storage/
-      upload/route.ts
-      delete/route.ts
-    webhooks/
-      polar/route.ts
-```
-
-## Authentication Flow
-
-```
-User -> /auth
-  -> Sign in with password OR Continue with Google
-  -> /auth/callback exchanges OAuth code for session
-  -> redirect to /app
-
-Every request:
-  -> middleware.ts calls updateSession()
-  -> refreshes auth cookies
-  -> public routes: /, /auth, /pricing, /api/webhooks/*
-  -> all other routes require session
-
-Session persistence:
-  -> browser/server/middleware use long-lived auth cookie options (~1 year)
-  -> browser client uses persistSession + autoRefreshToken
-  -> /auth auto-redirects to /app when an active session already exists
-```
-
-## Data Model (Supabase)
-
-### `auth.users`
-Supabase built-in auth users.
+## Data Model
 
 ### `user_profiles`
-`id` (UUID, FK to auth.users), `polar_customer_id`, `plan` (default 'free'), `credits_remaining` (default 10), timestamps.
 
-- Auto-created via `handle_new_user` trigger on signup
-- RLS: users can read/update own row, service role has full access
-- RPC: `deduct_credits(p_user_id, p_amount)` — atomic credit deduction with `FOR UPDATE` row lock
-- RPC: `add_credits(p_customer_id, p_amount)` — for Polar webhook top-ups
+- `id` (FK to `auth.users`)
+- `plan`
+- `credits_remaining`
+- `polar_customer_id`
+- timestamps
+
+RPCs:
+
+- `deduct_credits(p_user_id, p_amount)`
+- `add_credits(p_customer_id, p_amount)`
 
 ### `gallery_items`
-User-scoped uploads, generated images, and videos metadata.
-- `type`: `'upload' | 'generation' | 'video'`
+
+Metadata table for user media:
+
+- `type`: `upload | generation | video`
+- `user_id`, `url`, `thumbnail_url`, `mime_type`, timestamps
+
+Important: frontend gallery is sourced from this table, not directly from R2 listing.
 
 ### `model_presets`
-Shared subject presets used by all users:
-- `label`, `category`, `tags` (`text[]`)
-- `image_url`, `thumbnail_url`
-- `created_by`, `created_at`
 
-Schema and RLS setup: `docs/model-presets.sql`.
+Shared subject presets (admin-created): label/category/tags + original/thumbnail URLs.
 
 ## Image Generation Flow
 
-```
-1. Client sends person image + garments + prompt + settings to /api/generate/image
-2. Server validates:
-   - auth
-   - resolution in {2K, 4K}
-   - numGenerations in 1..4
-   - free users max 1 generation per request
-3. Server checks credits via getUserCredits() — returns 402 if insufficient
-4. Server uploads references to kie.ai:
-   - single mode: person + first garment
-   - panel mode: person + server-built 2x2 garment collage
-5. Server creates N tasks (N = numGenerations), returns taskIds[]
-6. Server deducts credits atomically via deductCredits()
-7. Client polls /api/generate/status for each task, aggregates progress
-   - Polling timeout: 120 attempts × 3s = ~6 minutes
-8. On completion, client auto-saves returned URLs via /api/storage/upload
-   - Free tier: watermark applied before R2 upload
-   - Thumbnail generated via sharp (images only)
-9. Client calls onCreditsRefresh() to update header display
-10. If no generations exist yet in single-swap mode, UI shows a guided 3-step empty state:
-    - Upload garment
-    - Choose subject
-    - Generate
-    with explicit readiness gating in PromptBar
-```
+1. Client submits references + prompt + settings to `/api/generate/image`.
+2. Server validates auth, resolution, generation count, and free-tier limits.
+3. Server checks credits and returns `402 INSUFFICIENT_CREDITS` when needed.
+4. Server uploads references to kie.ai.
+5. Server creates N tasks in parallel (N = selected generation count).
+6. Server deducts credits.
+7. Client polls all task IDs concurrently and aggregates progress.
+8. Completed outputs are saved through `/api/storage/upload`.
+9. UI displays saved result URLs and refreshes credits.
+10. Loading UI renders one animated placeholder card per requested generation count.
 
 ## Video Generation Flow
 
-```
-1. Client posts prompt (+ optional reference image) to /api/generate/video
-2. Server checks credits via getVideoCreditCost() + getUserCredits()
-3. Server uploads reference image if present
-4. Server creates Kling task, deducts credits, returns taskId
-5. Client polls /api/generate/status until completion
-   - Polling timeout: 120 attempts × 5s = ~10 minutes
-6. On completion, video is persisted to R2 via /api/storage/upload (type: 'video')
-7. Video appears in gallery "My Videos" tab
-```
+1. Client submits prompt (+ optional reference image) to `/api/generate/video`.
+2. Server checks credits and creates video task.
+3. Client polls `/api/generate/status`.
+4. On completion, video is saved with `/api/storage/upload` as `type=video`.
+5. Gallery `videos` tab updates.
 
-## Credit System
+## Gallery and Storage Reliability
 
-```
-Credits tracked in: user_profiles.credits_remaining
-Default free tier: 10 credits
+### Upload path (`/api/storage/upload`)
 
-Server-side (lib/credits.ts):
-  getUserCredits(supabase, userId, userEmail?) -> { credits, plan, isUnlimited }
-  deductCredits(supabase, userId, amount, userEmail?) -> { success, remaining }
-  getImageCreditCost(resolution, count)
-  getVideoCreditCost(duration)
+- Uploads original (and image thumbnail) to R2.
+- Inserts metadata row in `gallery_items`.
+- For free generation images, applies watermark text `Fit Check App`.
+- If DB metadata insert fails, API now returns error and cleans up uploaded R2 files (prevents orphaned blobs).
 
-API enforcement:
-  - /api/generate/image checks + deducts credits
-  - /api/generate/video checks + deducts credits
-  - Returns 402 { code: 'INSUFFICIENT_CREDITS' } when insufficient
-  - Admin unlimited-credit bypass by email allowlist:
-    - default includes `sharukesh.seker@gmail.com`
-    - configurable via `UNLIMITED_CREDITS_ADMIN_EMAILS`
-  - Admin users return plan `admin` and are exempt from credit deduction
+### Read path (`/api/gallery`)
 
-Client enforcement:
-  - useGeneration and useVideoGeneration handle 402 responses
-  - page.tsx checks credits <= 0 -> redirect to /pricing
-```
+- Reads current user via Supabase auth.
+- Queries `gallery_items` by `user_id`.
+- If no rows exist, attempts metadata recovery from current user R2 prefix and upserts recovered rows.
 
-## Billing Flow (Polar)
+Note: rebuilding the app does not wipe gallery; empty gallery is usually metadata/user-session mismatch.
 
-```
-Subscription checkout:
-  POST /api/billing/checkout { plan: 'pro' | 'premium' }
-  -> Maps plan to POLAR_*_PRODUCT_ID env var
-  -> Creates Polar checkout session
-  -> Returns { checkoutUrl }
-  -> Returns 503 if product IDs not configured
+## Credits
 
-Customer portal:
-  POST /api/billing/portal
-  -> Gets polar_customer_id from user_profiles
-  -> Creates Polar customer session
-  -> Returns { portalUrl }
+- Server-side source of truth: `user_profiles.credits_remaining`.
+- Admin unlimited bypass supported via allowlist (`UNLIMITED_CREDITS_ADMIN_EMAILS`).
+- Image and video routes both enforce credit checks and deductions.
 
-Webhook handling (POST /api/webhooks/polar):
-  subscription.created/active -> update plan + credits_remaining
-  subscription.canceled -> downgrade to free
-  order.paid -> add credits via add_credits RPC
-```
+## Billing
 
-## Shared Model Presets
+- Checkout: `/api/billing/checkout`
+- Portal: `/api/billing/portal`
+- Polar webhook: `/api/webhooks/polar`
 
-- `GET /api/model-presets`
-  - Authenticated users can search with `q` and optional `category`.
-- `POST /api/model-presets`
-  - Admin-only (email allowlist via `MODEL_PRESET_ADMIN_EMAILS`).
-  - Accepts base64 or URL source image.
-  - Uploads original + thumbnail to R2 and stores metadata/tags in Supabase.
+If Polar products are not configured, billing routes return `503` and app core still works.
 
-## Navigation and UX Notes
+## UX/Navigation Notes
 
-- Sidebar is retractable (expanded/collapsed states).
-- Main navigation includes:
-  - `Home`
-  - `Image` (dedicated image generation tool)
-  - `Video` (dedicated video generation tool)
-  - `Templates`
-  - `Assistant`
-  - `Guide`
-  - `Academy`
-- Collapsed sidebar uses icons (not text letters).
-- Assistant greeting is time-aware (`Good morning/afternoon/night`) based on user local time.
+- Sidebar supports expanded + collapsed modes.
+- Collapsed nav uses icons.
+- Image/Video are top-level tool entries.
+- Image nav defaults to Single Swap mode.
+- Style Studio top bar includes quick rerun actions:
+  - `Change Garment`
+  - `Change Subject`
+- Single Swap guide remains visible through partial input states and supports direct in-guide uploads.
+- Assistant greeting is local-time based (`morning/afternoon/night`).
 
-## Watermark System
+## Template Prompt Presets
 
-Free-tier users get a semi-transparent "Fit Check" watermark on generated images:
-- Applied in `/api/storage/upload` when `type === 'generation'` and `plan === 'free'`
-- Uses `lib/watermark.ts` with sharp composite
-- SVG text overlay scaled to image dimensions
-- Graceful fallback if watermark fails
+- Templates support curated `presetPrompts`.
+- Clicking `Use Template` picks one prompt variant and applies it to image/video tool.
+- `defaultPrompt` remains fallback.
 
-## API Routes Reference
+## API Reference
 
-| Method | Route | Auth | Purpose |
-|--------|-------|------|---------|
-| GET | `/api/credits` | Yes | Fetch user credits + plan from DB |
-| GET | `/api/download` | Yes | Proxy file download (authenticated) |
-| POST | `/api/billing/checkout` | Yes | Create Polar checkout session |
-| POST | `/api/billing/portal` | Yes | Create Polar customer portal session |
-| POST | `/api/email/send` | Yes | Send transactional email to signed-in user |
-| GET | `/api/gallery` | Yes | List user uploads, generations, and videos |
-| GET | `/api/model-presets` | Yes | Search shared model presets |
-| POST | `/api/model-presets` | Admin | Create tagged shared model preset |
-| POST | `/api/generate/image` | Yes | Submit image generation tasks (credit check) |
-| POST | `/api/generate/video` | Yes | Submit video generation task (credit check) |
-| GET | `/api/generate/status` | Yes | Poll generation status |
-| POST | `/api/generate/remove-bg` | Yes | Remove background |
-| POST | `/api/storage/upload` | Yes | Upload to R2 + save metadata + watermark |
-| POST | `/api/storage/delete` | Yes | Delete R2 + metadata |
-| POST | `/api/webhooks/polar` | HMAC | Polar webhook handler |
+| Method | Route | Purpose |
+|--------|-------|---------|
+| GET | `/api/credits` | Fetch user plan + credits |
+| GET | `/api/download` | Authenticated download proxy |
+| GET | `/api/gallery` | List gallery items (+ recovery attempt) |
+| GET | `/api/model-presets` | Search subject presets |
+| POST | `/api/model-presets` | Admin create preset |
+| POST | `/api/generate/image` | Submit image generation tasks |
+| POST | `/api/generate/video` | Submit video generation task |
+| GET | `/api/generate/status` | Poll generation status |
+| POST | `/api/generate/remove-bg` | Remove background |
+| POST | `/api/storage/upload` | Save file + metadata (+ watermark/cleanup) |
+| POST | `/api/storage/delete` | Delete metadata + R2 objects |
+| POST | `/api/billing/checkout` | Create checkout session |
+| POST | `/api/billing/portal` | Create customer portal session |
+| POST | `/api/webhooks/polar` | Billing webhook handler |
+| POST | `/api/email/send` | Send transactional email |

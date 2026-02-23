@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { uploadToR2 } from '@/lib/r2';
+import { deleteFromR2, uploadToR2 } from '@/lib/r2';
 import { applyWatermark } from '@/lib/watermark';
 import { getUserCredits } from '@/lib/credits';
 import sharp from 'sharp';
@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
 
     // Generate and upload thumbnail (images only)
     let thumbnailUrl: string | undefined;
+    let thumbKey: string | undefined;
     if (!isVideo) {
       try {
         const thumbnailBuffer = await sharp(fileBuffer)
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
           .webp({ quality: 80 })
           .toBuffer();
 
-        const thumbKey = `${user.id}/${type}s/thumbs/${id}.webp`;
+        thumbKey = `${user.id}/${type}s/thumbs/${id}.webp`;
         thumbnailUrl = await uploadToR2(thumbKey, thumbnailBuffer, 'image/webp');
       } catch (e) {
         console.error('Thumbnail generation failed:', e);
@@ -98,7 +99,24 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Failed to save gallery item:', error);
-      // Return the item even if DB save fails (the files are in R2)
+
+      try {
+        await deleteFromR2(originalKey);
+      } catch (cleanupError) {
+        console.error('Failed to cleanup original after DB failure:', cleanupError);
+      }
+      if (thumbKey) {
+        try {
+          await deleteFromR2(thumbKey);
+        } catch (cleanupError) {
+          console.error('Failed to cleanup thumbnail after DB failure:', cleanupError);
+        }
+      }
+
+      return NextResponse.json(
+        { error: 'Failed to save gallery metadata' },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json({

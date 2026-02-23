@@ -1,112 +1,87 @@
-# Tasks - Done and TODO
+# Tasks - Done and Next
 
 ## Completed
 
-### UX + Navigation (Latest)
-- [x] Added retractable sidebar (expanded + collapsed states)
-- [x] Moved profile/account control to bottom-left area in open menu
-- [x] Added Guide navigation screen
-- [x] Added Academy section for courses and demo videos
-- [x] Added Image and Video menu options as dedicated tool entries
-- [x] Updated collapsed sidebar to icons (no letter placeholders)
-- [x] Added Launch Campaign Video template (routes to video generator)
-- [x] Fixed Template Library scrolling (TemplatesExplorer now scrollable)
-- [x] Added Batch Background Removal screen and template entry
+### Navigation and Core UX
+- [x] Retractable sidebar (expanded/collapsed)
+- [x] Bottom-left profile control in open menu
+- [x] Added Guide and Academy sections
+- [x] Added top-level Image and Video tool navigation
+- [x] Collapsed sidebar uses icons
+- [x] Template library scrolling fixed
+- [x] Added Batch Background Removal screen + template
 
-### Single Swap Onboarding UX
-- [x] Added guided empty state for single-swap mode (SingleSwapGuide)
-- [x] Added explicit 3-step progress strip: Upload Garment -> Choose Subject -> Generate
-- [x] Added required input cards with readiness states and actions
-- [x] Added sidebar focus/highlight jump from guide actions
-- [x] Disabled Generate until required garment + subject inputs are present
-- [x] Added clear blocked reason in prompt bar CTA
+### Templates and Prompting
+- [x] Added Launch Campaign Video template
+- [x] Added curated `presetPrompts` for templates that already had baked prompts
+- [x] `Use Template` now applies a selected preset prompt variant to the target tool
 
-### Assistant UX
-- [x] Redesigned assistant workspace to match current app visual language
-- [x] Added dynamic greeting by local time (morning / afternoon / night)
+### Single Swap and Onboarding
+- [x] Added first-run onboarding wizard
+- [x] Added Single Swap guided workflow with required-asset states
+- [x] Single Swap guide now remains visible for partial input states (subject-only or garment-only)
+- [x] Added direct upload actions inside Single Swap guide
+- [x] Added quick rerun toolbar actions in Style Studio (`Change Garment`, `Change Subject`)
+- [x] Image navigation defaults to Single Swap mode
 
-### Auth + Session Persistence
-- [x] Added persistent Supabase session cookie options (browser/server/middleware)
-- [x] Added singleton browser Supabase client to prevent session churn
-- [x] Auto-redirect /auth -> /app when an active session exists
+### Generation UX
+- [x] Multi-generation requests are submitted in parallel on backend
+- [x] Result loading UI now renders one placeholder card per selected generation count
+- [x] Added aesthetic glow-style loading cards (no text)
 
-### Admin Credits
-- [x] Added unlimited-credits admin bypass in server credit checks/deductions
-- [x] Added admin plan display (Admin | Unlimited) in header
-- [x] Added env support: UNLIMITED_CREDITS_ADMIN_EMAILS
+### Auth and Sessions
+- [x] Long-lived Supabase session cookie options
+- [x] Browser Supabase singleton for stable sessions
+- [x] `/auth` auto-redirect to `/app` when already signed in
 
-### Credit Enforcement (Phase 1)
-- [x] Added credits_remaining to UserProfile type
-- [x] Created lib/credits.ts server-side credit helpers
-- [x] Created lib/supabase/admin.ts service-role Supabase client for webhooks
-- [x] Updated /api/credits to read from DB instead of Polar
-- [x] Added credit check + deduction to /api/generate/image (returns 402 INSUFFICIENT_CREDITS)
-- [x] Added credit check + deduction to /api/generate/video (returns 402 INSUFFICIENT_CREDITS)
-- [x] Client hooks handle 402 responses and call onCreditsRefresh
-- [x] app/app/page.tsx checks credits <= 0 and redirects to /pricing
+### Credits and Billing
+- [x] Server-side credit helpers + enforcement for image/video generation
+- [x] Unlimited admin bypass (email allowlist) and Admin/Unlimited display
+- [x] Billing checkout/portal routes and Polar webhook DB wiring
 
-### Video Persistence (Phase 2)
-- [x] /api/storage/upload handles video MIME types (skip thumbnails, .mp4 ext)
-- [x] /api/gallery returns uploads, generations, and videos
-- [x] useGallery manages videos state with addVideo and deleteVideo
-- [x] useVideoGeneration persists videos to R2 after generation, calls onVideoSaved
-- [x] Gallery has My Videos tab with inline play, download, delete
+### Storage and Gallery Reliability
+- [x] Video persistence to R2 + gallery support
+- [x] Watermark enforced for free generation images (`Fit Check App` label)
+- [x] `/api/storage/upload` now errors and cleans up R2 objects when metadata insert fails
+- [x] `/api/gallery` includes recovery path that can rebuild metadata rows from current-user R2 prefix when DB is empty
 
-### Polar Billing Preparation (Phase 3)
-- [x] /api/webhooks/polar wired to DB updates (subscription create/cancel, order paid, customer link)
-- [x] Created /api/billing/checkout (503 if product IDs unconfigured)
-- [x] Created /api/billing/portal
-- [x] pricing/page.tsx wired to checkout API with subscribe + top-up buttons
-
-### Polish & Cleanup (Phase 4)
-- [x] Removed dead code: GenerationRecord, AppStatus.ANALYZING, dataURLToFile(), createThumbnail()
-- [x] Fixed DEFAULT_PROMPT to be gender/ethnicity neutral
-- [x] R2 hostname read from R2_PUBLIC_DOMAIN env var
-- [x] Polling timeout: image ~6 min (120 x 3s), video ~10 min (120 x 5s)
-- [x] Auth check added to /api/download
-- [x] Free-tier watermark on generation images (lib/watermark.ts + storage/upload)
-- [x] Removed unused galleryId from /api/generate/remove-bg
-- [x] Removed unused videoUrl prop from VideoGenerator
-- [x] Fixed useVideoGeneration dependency array
-- [x] Type-check passes (npx tsc --noEmit)
-- [x] Updated docs (CLAUDE.md, architecture.md, patterns.md)
+### Docs and Hygiene
+- [x] Removed screenshot PNG files from `docs/`
+- [x] Updated `docs/architecture.md`
+- [x] Updated `docs/patterns.md`
+- [x] Updated `docs/tasks.md`
 
 ---
 
-## TODO - Pending
+## Pending
 
-### Critical: Supabase OAuth Provider Setup
-- [ ] Enable Google provider in Supabase Auth -> Providers
-- [ ] Configure Google OAuth client ID/secret in Supabase
-- [ ] Add redirect URLs for local and production callbacks
-- [ ] Validate end-to-end Google sign-in flow
+### OAuth / Auth Config
+- [ ] Confirm Google provider is enabled in Supabase Auth for target environments
+- [ ] Verify OAuth redirect URLs for local + production
+- [ ] Re-test end-to-end Google sign-in flow in production
 
-### Critical: Database Migration Validation
-- [ ] Confirm user_profiles table + RPCs exist in production
-- [ ] Backfill profiles for any existing auth.users rows
-- [ ] Validate RLS and service role access in production
+### Billing Environment Setup
+- [ ] Ensure Polar product IDs are configured in production env vars
+- [ ] Confirm `SUPABASE_SERVICE_ROLE_KEY` exists in production
+- [ ] Run full billing webhook E2E test
 
-### Polar Billing Setup
-- [ ] Create products in Polar dashboard (Pro, Premium, top-up packs)
-- [ ] Set env vars: POLAR_PRO_PRODUCT_ID, POLAR_PREMIUM_PRODUCT_ID, POLAR_TOPUP_50_PRODUCT_ID, POLAR_TOPUP_150_PRODUCT_ID, POLAR_TOPUP_500_PRODUCT_ID
-- [ ] Set SUPABASE_SERVICE_ROLE_KEY env var in production
-- [ ] Test webhook flow end-to-end (subscribe -> credits updated -> portal works)
+### Gallery Data Integrity
+- [ ] If historical R2 assets were written under old user IDs, run one-time migration/backfill to current user IDs
+- [ ] Add operator/admin script for manual gallery metadata repair by user
 
-### Reliability and Visibility
-- [ ] Add explicit per-item save status for generated image/video uploads
-- [ ] Add retry-save action when /api/storage/upload fails
-- [ ] Add lightweight telemetry for gallery persistence failures
-
-### Nice-to-Have
-- [ ] Add OAuth buttons beyond Google (GitHub, Apple)
-- [ ] Email notification when credits run low
-- [ ] Admin dashboard for credit management
+### Product Improvements
+- [ ] Add explicit per-item save state in gallery cards
+- [ ] Add retry-save action in UI when persistence fails
+- [ ] Add lightweight telemetry/alerts for gallery metadata failures
+- [ ] Build `Brand DNA` memory: let users save visual identity preferences and auto-apply them to prompts/settings
+- [ ] Build `Launch Pack Autopilot`: one-click goal-to-campaign flow that generates a launch pack (hero image, channel variants, remove-bg asset, short video, and caption drafts)
 
 ---
 
-## Next (Recommended Order)
+## Next Recommended Steps
 
-1. Fix Google provider setup in Supabase so OAuth sign-in works.
-2. Add save-status + retry on generation persistence so users never lose visibility of outputs.
-3. Complete Polar product/env setup and run billing webhook E2E tests.
-4. Build a minimal admin credit operations page (view + adjust balances with audit log).
+1. Validate OAuth provider config in production and test Google login.
+2. Run a one-time audit of `gallery_items` vs R2 prefixes for legacy data mismatch.
+3. Complete Polar env + webhook E2E verification.
+4. Add gallery save-status + retry UX polish.
+5. Start implementation spike for `Brand DNA` and `Launch Pack Autopilot` architecture.

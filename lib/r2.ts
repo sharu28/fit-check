@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 
 function getR2Client(): S3Client {
   return new S3Client({
@@ -45,6 +45,49 @@ export async function deleteFromR2(key: string): Promise<void> {
       Key: key,
     }),
   );
+}
+
+export interface R2ObjectSummary {
+  key: string;
+  lastModified?: Date;
+  size?: number;
+}
+
+/**
+ * List objects in R2 for a prefix.
+ */
+export async function listR2Objects(prefix: string): Promise<R2ObjectSummary[]> {
+  const client = getR2Client();
+  const bucket = process.env.R2_BUCKET_NAME!;
+
+  const objects: R2ObjectSummary[] = [];
+  let continuationToken: string | undefined;
+
+  do {
+    const response = await client.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+        MaxKeys: 1000,
+      }),
+    );
+
+    for (const entry of response.Contents ?? []) {
+      if (!entry.Key) continue;
+      objects.push({
+        key: entry.Key,
+        lastModified: entry.LastModified,
+        size: entry.Size,
+      });
+    }
+
+    continuationToken = response.IsTruncated
+      ? response.NextContinuationToken
+      : undefined;
+  } while (continuationToken);
+
+  return objects;
 }
 
 /**

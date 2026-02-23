@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import type { ReactNode } from 'react';
 import { CheckCircle2, Circle, Shirt, User } from 'lucide-react';
 
@@ -8,6 +9,8 @@ interface SingleSwapGuideProps {
   hasSubject: boolean;
   garmentPreviewUrl?: string;
   subjectPreviewUrl?: string;
+  onUploadGarment?: (file: File) => void | Promise<void>;
+  onUploadSubject?: (file: File) => void | Promise<void>;
   onAddGarment: () => void;
   onAddSubject: () => void;
 }
@@ -103,10 +106,14 @@ export function SingleSwapGuide({
   hasSubject,
   garmentPreviewUrl,
   subjectPreviewUrl,
+  onUploadGarment,
+  onUploadSubject,
   onAddGarment,
   onAddSubject,
 }: SingleSwapGuideProps) {
   const readyToGenerate = hasGarment && hasSubject;
+  const garmentInputRef = useRef<HTMLInputElement | null>(null);
+  const subjectInputRef = useRef<HTMLInputElement | null>(null);
 
   return (
     <div className="w-full h-full min-h-[430px] rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/60 p-5 md:p-8">
@@ -133,8 +140,14 @@ export function SingleSwapGuide({
             description="Upload the clothing item first"
             previewUrl={garmentPreviewUrl}
             complete={hasGarment}
-            onAction={onAddGarment}
-            actionLabel={hasGarment ? 'Change Garment' : 'Add Garment'}
+            onAction={() => {
+              if (onUploadGarment) {
+                garmentInputRef.current?.click();
+                return;
+              }
+              onAddGarment();
+            }}
+            actionLabel={hasGarment ? 'Change Garment' : 'Upload Garment'}
             icon={<Shirt size={16} />}
           />
           <RequiredCard
@@ -142,11 +155,52 @@ export function SingleSwapGuide({
             description="Select the model / person"
             previewUrl={subjectPreviewUrl}
             complete={hasSubject}
-            onAction={onAddSubject}
-            actionLabel={hasSubject ? 'Change Subject' : 'Choose Subject'}
+            onAction={() => {
+              if (onUploadSubject) {
+                subjectInputRef.current?.click();
+                return;
+              }
+              onAddSubject();
+            }}
+            actionLabel={hasSubject ? 'Change Subject' : 'Upload Subject'}
             icon={<User size={16} />}
           />
         </div>
+
+        <div className="mt-3 flex justify-center">
+          <button
+            type="button"
+            onClick={onAddSubject}
+            className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+          >
+            Choose Subject From Library
+          </button>
+        </div>
+
+        <input
+          ref={garmentInputRef}
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file && onUploadGarment) {
+              void onUploadGarment(file);
+            }
+          }}
+        />
+        <input
+          ref={subjectInputRef}
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file && onUploadSubject) {
+              void onUploadSubject(file);
+            }
+          }}
+        />
 
         <p className="mt-4 text-center text-sm font-medium text-gray-600">
           {readyToGenerate

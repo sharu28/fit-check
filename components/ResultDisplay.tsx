@@ -23,6 +23,7 @@ interface ResultDisplayProps {
   status: AppStatus;
   resultImage: string | null;
   generations: GalleryItem[];
+  pendingCount?: number;
   progress?: number;
   onReset: () => void;
   onDelete: (id: string) => void;
@@ -35,6 +36,7 @@ export function ResultDisplay({
   status,
   resultImage,
   generations,
+  pendingCount = 1,
   progress = 0,
   onReset,
   onDelete,
@@ -176,36 +178,34 @@ export function ResultDisplay({
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {/* Generating card */}
-        {status === AppStatus.GENERATING && (
-          <div className="aspect-[3/4] rounded-xl bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center">
-            <div className="relative w-14 h-14 mb-4">
-              <div className="absolute inset-0 border-4 border-indigo-100 rounded-full" />
-              <div className="absolute inset-0 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin" />
-              <Wand2
-                className="absolute inset-0 m-auto text-indigo-600 animate-pulse"
-                size={20}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+        {/* Generating cards */}
+        {status === AppStatus.GENERATING &&
+          Array.from({ length: Math.max(1, pendingCount) }).map((_, index) => (
+            <div
+              key={`loading-${index}`}
+              className="relative aspect-[3/4] overflow-hidden rounded-2xl border border-indigo-100/80 bg-gradient-to-br from-white via-indigo-50/70 to-sky-100/70 p-4"
+            >
+              <div
+                className="absolute inset-0 animate-pulse bg-gradient-to-tr from-transparent via-white/50 to-transparent"
+                style={{ animationDelay: `${index * 120}ms` }}
               />
-            </div>
-            <p className="text-sm font-semibold text-gray-700 animate-pulse">
-              Generating...
-            </p>
-            {progress > 0 && (
-              <div className="mt-3 w-24">
-                <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-indigo-600 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.round(progress * 100)}%` }}
-                  />
+              <div className="relative flex h-full items-center justify-center">
+                <div className="relative h-16 w-16">
+                  <div className="absolute inset-0 rounded-full border-2 border-indigo-200/80" />
+                  <div className="absolute inset-0 animate-[spin_2.2s_linear_infinite] rounded-full border-2 border-transparent border-r-indigo-500 border-t-indigo-600" />
+                  <div className="absolute inset-2 rounded-full bg-gradient-to-br from-indigo-500/10 to-sky-500/20 animate-pulse" />
+                  <Wand2 className="absolute inset-0 m-auto text-indigo-600/90" size={18} />
                 </div>
-                <p className="text-xs text-gray-400 text-center mt-1">
-                  {Math.round(progress * 100)}%
-                </p>
               </div>
-            )}
-          </div>
-        )}
+              <div className="absolute bottom-3 left-4 right-4 h-1.5 overflow-hidden rounded-full bg-indigo-100/70">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-sky-500 transition-all duration-500"
+                  style={{ width: `${Math.max(8, Math.round(progress * 100))}%` }}
+                />
+              </div>
+            </div>
+          ))}
 
         {/* Unsaved latest result (before auto-save completes) */}
         {unsavedResult && resultImage && (
