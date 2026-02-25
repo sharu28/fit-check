@@ -5,6 +5,7 @@ import type { GalleryFolder, GalleryItem } from '@/types';
 import {
   ArrowRightLeft,
   Check,
+  Clapperboard,
   Clock,
   Download,
   Folder,
@@ -29,6 +30,7 @@ interface GalleryProps {
   onSelectUpload: (item: GalleryItem, target: 'person' | 'garment') => void;
   onDelete: (id: string, type: 'upload' | 'generation') => void;
   onDeleteVideo?: (id: string) => void;
+  onCreateVideoFromImage?: (item: GalleryItem) => void;
   onUpload?: (file: File, folderId?: string | null) => void;
   onCreateFolder: (
     name: string,
@@ -55,6 +57,7 @@ export function Gallery({
   onSelectUpload,
   onDelete,
   onDeleteVideo,
+  onCreateVideoFromImage,
   onUpload,
   onCreateFolder,
   onRenameFolder,
@@ -415,6 +418,16 @@ export function Gallery({
                       <a href={`/api/download?url=${encodeURIComponent(item.url)}`} className="p-2 bg-white text-gray-900 rounded-full hover:bg-gray-50 transition-colors" title="Download High Res">
                         <Download size={18} />
                       </a>
+                      {onCreateVideoFromImage && (
+                        <button
+                          type="button"
+                          onClick={() => onCreateVideoFromImage(item)}
+                          className="p-2 bg-white text-gray-900 rounded-full hover:bg-gray-50 transition-colors"
+                          title="Create Video"
+                        >
+                          <Clapperboard size={16} />
+                        </button>
+                      )}
                       <button type="button" onClick={() => openMoveModal(item.id, 'generation', item.folderId)} className="p-2 bg-white text-gray-900 rounded-full hover:bg-gray-50 transition-colors" title="Move">
                         <ArrowRightLeft size={16} />
                       </button>

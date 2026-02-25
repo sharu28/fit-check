@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { sendEmailWithResend } from '@/lib/resend';
+import { isResendConfigured, sendEmailWithResend } from '@/lib/resend';
 
 type SendEmailRequest = {
   subject?: string;
@@ -11,6 +11,13 @@ type SendEmailRequest = {
 
 export async function POST(request: Request) {
   try {
+    if (!isResendConfigured()) {
+      return NextResponse.json(
+        { error: 'Transactional email is not configured yet' },
+        { status: 503 },
+      );
+    }
+
     const supabase = await createClient();
     const {
       data: { user },

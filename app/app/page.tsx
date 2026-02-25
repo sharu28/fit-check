@@ -30,6 +30,7 @@ import { AcademyWorkspace } from '@/components/AcademyWorkspace';
 import { SingleSwapGuide } from '@/components/SingleSwapGuide';
 import { OnboardingQuickStartFeed } from '@/components/OnboardingQuickStartFeed';
 import { TemplateIndustryPicker } from '@/components/TemplateIndustryPicker';
+import { VideoTemplatePickerModal } from '@/components/VideoTemplatePickerModal';
 import {
   OnboardingQuestionnaire,
   ONBOARDING_GOAL_LABELS,
@@ -51,6 +52,10 @@ const ONBOARDING_GOAL_TEMPLATE_MAP: Record<OnboardingGoal, string> = {
   'launch-campaign': 'launch-campaign-video',
   'whatsapp-status-pack': 'social-campaign',
 };
+
+const VIDEO_TEMPLATE_OPTIONS: TemplateOption[] = TEMPLATE_OPTIONS.filter(
+  (option) => option.targetTool === 'video-generator',
+);
 
 type OnboardingSelection = {
   industry: OnboardingIndustry;
@@ -225,6 +230,8 @@ export default function HomePage() {
   const [hideOnboardingQuickStart, setHideOnboardingQuickStart] = useState(false);
   const [showTemplateIndustryPicker, setShowTemplateIndustryPicker] = useState(false);
   const [pendingTemplateSelection, setPendingTemplateSelection] = useState<TemplateOption | null>(null);
+  const [showVideoTemplatePicker, setShowVideoTemplatePicker] = useState(false);
+  const [videoTemplateSourceUrl, setVideoTemplateSourceUrl] = useState<string | null>(null);
   const [templateIndustryPreference, setTemplateIndustryPreference] = useState<OnboardingIndustry>('garments');
   const [guideFocusTarget, setGuideFocusTarget] = useState<'garment' | 'subject' | null>(null);
   const subjectSectionRef = useRef<HTMLDivElement | null>(null);
@@ -547,6 +554,35 @@ export default function HomePage() {
     return { file, previewUrl, base64, mimeType: file.type };
   }, [addToast]);
 
+  const buildUploadedImageFromUrl = useCallback(async (imageUrl: string): Promise<UploadedImage> => {
+    const fetchUrl = imageUrl.startsWith('data:')
+      ? imageUrl
+      : `/api/download?url=${encodeURIComponent(imageUrl)}`;
+
+    const res = await fetch(fetchUrl);
+    if (!res.ok) {
+      throw new Error('Failed to load selected image for video reference.');
+    }
+
+    const blob = await res.blob();
+    const mimeType = blob.type || 'image/png';
+    const extension = mimeType.includes('webp')
+      ? 'webp'
+      : mimeType.includes('png')
+        ? 'png'
+        : 'jpg';
+    const file = new File([blob], `video-reference.${extension}`, {
+      type: mimeType,
+    });
+
+    const [previewUrl, base64] = await Promise.all([
+      readFileToDataUrl(file),
+      fileToBase64(file),
+    ]);
+
+    return { file, previewUrl, base64, mimeType };
+  }, []);
+
   const handleSingleSwapGarmentUpload = useCallback(async (file: File) => {
     const uploaded = await buildUploadedImage(file);
     if (!uploaded) return;
@@ -655,6 +691,68 @@ export default function HomePage() {
       }, 140);
     }
   }, [pendingTemplateSelection, pickTemplatePrompt, applyTemplateSelection]);
+
+  const handleOpenVideoTemplatePicker = useCallback(
+    (imageUrl: string, _galleryId?: string) => {
+      setVideoTemplateSourceUrl(imageUrl);
+      setShowVideoTemplatePicker(true);
+    },
+    [],
+  );
+
+  const handleCloseVideoTemplatePicker = useCallback(() => {
+    setShowVideoTemplatePicker(false);
+    setVideoTemplateSourceUrl(null);
+  }, []);
+
+  const handleVideoTemplateSelectFromImage = useCallback(
+    async (template: TemplateOption) => {
+      if (!videoTemplateSourceUrl) return;
+
+      try {
+        const selectedPrompt = pickTemplatePrompt(template);
+        const resolvedPrompt = onboardingSelection
+          ? buildIndustryAwareTemplatePrompt(
+              template,
+              onboardingSelection.industry,
+              selectedPrompt,
+            )
+          : selectedPrompt;
+
+        const referenceImage = await buildUploadedImageFromUrl(
+          videoTemplateSourceUrl,
+        );
+
+        video.setReferenceImage(referenceImage);
+        video.setPrompt(resolvedPrompt);
+        setCurrentTool('video-generator');
+        setActiveSection('home');
+        gallery.setShowLibrary(false);
+        setShowVideoTemplatePicker(false);
+        setVideoTemplateSourceUrl(null);
+        addToast(
+          `${template.title} loaded. Click Generate to create a video from this image.`,
+          'success',
+        );
+      } catch (error) {
+        addToast(
+          error instanceof Error
+            ? error.message
+            : 'Failed to prepare image for video generation.',
+          'error',
+        );
+      }
+    },
+    [
+      videoTemplateSourceUrl,
+      pickTemplatePrompt,
+      onboardingSelection,
+      buildUploadedImageFromUrl,
+      video,
+      gallery,
+      addToast,
+    ],
+  );
 
   const navigateHome = useCallback(() => {
     setActiveSection('home');
@@ -979,6 +1077,9 @@ export default function HomePage() {
                   onSelectUpload={handleGallerySelect}
                   onDelete={gallery.deleteItem}
                   onDeleteVideo={gallery.deleteVideo}
+                  onCreateVideoFromImage={(item) =>
+                    handleOpenVideoTemplatePicker(item.url, item.id)
+                  }
                   onUpload={gallery.directUpload}
                   onCreateFolder={gallery.createFolder}
                   onRenameFolder={gallery.renameFolder}
@@ -995,6 +1096,7 @@ export default function HomePage() {
                   onReset={generation.reset}
                   onDelete={(id) => gallery.deleteItem(id, 'generation')}
                   onRemoveBg={handleRemoveBg}
+                  onCreateVideo={handleOpenVideoTemplatePicker}
                   removingBgId={removingBgId}
                   emptyState={
                     showPersonalizedQuickStart && onboardingSelection ? (
@@ -1123,6 +1225,14 @@ export default function HomePage() {
         initialIndustry={onboardingSelection?.industry ?? templateIndustryPreference}
         onClose={handleCloseTemplateIndustryPicker}
         onConfirm={handleTemplateIndustryConfirm}
+      />
+
+      <VideoTemplatePickerModal
+        isOpen={showVideoTemplatePicker}
+        imageUrl={videoTemplateSourceUrl}
+        templates={VIDEO_TEMPLATE_OPTIONS}
+        onClose={handleCloseVideoTemplatePicker}
+        onSelect={handleVideoTemplateSelectFromImage}
       />
 
       <OnboardingQuestionnaire

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import {
+  Clapperboard,
   Download,
   RefreshCw,
   Wand2,
@@ -28,6 +29,7 @@ interface ResultDisplayProps {
   onReset: () => void;
   onDelete: (id: string) => void;
   onRemoveBg?: (imageUrl: string, galleryId?: string) => void;
+  onCreateVideo?: (imageUrl: string, galleryId?: string) => void;
   removingBgId?: string | null;
   emptyState?: ReactNode;
 }
@@ -41,6 +43,7 @@ export function ResultDisplay({
   onReset,
   onDelete,
   onRemoveBg,
+  onCreateVideo,
   removingBgId,
   emptyState,
 }: ResultDisplayProps) {
@@ -214,6 +217,7 @@ export function ResultDisplay({
             isNew
             onDownload={() => downloadImage(resultImage)}
             onShare={() => setShareImage(resultImage)}
+            onCreateVideo={onCreateVideo ? () => onCreateVideo(resultImage) : undefined}
           />
         )}
 
@@ -227,6 +231,7 @@ export function ResultDisplay({
             onShare={() => setShareImage(item.url)}
             onDelete={() => setDeleteId(item.id)}
             onRemoveBg={onRemoveBg ? () => onRemoveBg(item.url, item.id) : undefined}
+            onCreateVideo={onCreateVideo ? () => onCreateVideo(item.url, item.id) : undefined}
             isRemovingBg={removingBgId === item.id}
           />
         ))}
@@ -351,6 +356,7 @@ function ImageCard({
   onShare,
   onDelete,
   onRemoveBg,
+  onCreateVideo,
   isRemovingBg,
 }: {
   url: string;
@@ -360,6 +366,7 @@ function ImageCard({
   onShare: () => void;
   onDelete?: () => void;
   onRemoveBg?: () => void;
+  onCreateVideo?: () => void;
   isRemovingBg?: boolean;
 }) {
   return (
@@ -394,6 +401,15 @@ function ImageCard({
         >
           <Download size={18} />
         </button>
+        {onCreateVideo && (
+          <button
+            onClick={onCreateVideo}
+            className="p-2 bg-white text-gray-900 rounded-full hover:bg-gray-50 transition-colors shadow-sm"
+            title="Create Video"
+          >
+            <Clapperboard size={18} />
+          </button>
+        )}
         {onRemoveBg && (
           <button
             onClick={onRemoveBg}

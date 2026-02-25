@@ -38,14 +38,21 @@ export default function AuthPage() {
     setSuccessMessage(null);
 
     try {
+      const redirectTo = `${window.location.origin}/auth/callback`;
       if (mode === 'reset') {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo,
         });
         if (error) throw error;
         setSuccessMessage('Password reset email sent! Check your inbox.');
       } else if (mode === 'signup') {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: redirectTo,
+          },
+        });
         if (error) throw error;
         if (data.session) {
           router.push('/app');

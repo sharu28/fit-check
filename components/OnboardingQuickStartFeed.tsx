@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   Circle,
   Layers3,
-  Sparkles,
   Upload,
   X,
 } from 'lucide-react';
@@ -113,9 +112,6 @@ export function OnboardingQuickStartFeed({
             <h3 className="mt-2 text-2xl font-semibold text-gray-900 md:text-3xl">
               {ONBOARDING_INDUSTRY_LABELS[industry]} x {ONBOARDING_GOAL_LABELS[goal]}
             </h3>
-            <p className="mt-2 text-sm text-gray-600">
-              Follow this sequence for the fastest first result based on your selections.
-            </p>
           </div>
           <button
             type="button"
@@ -148,9 +144,6 @@ export function OnboardingQuickStartFeed({
               </div>
 
               <h4 className="mt-4 text-xl font-semibold text-gray-900 md:text-2xl">{primaryStep}</h4>
-              <p className="mt-2 text-sm text-gray-600">
-                Start here. One clear product photo is enough to generate your first result.
-              </p>
 
               <button
                 type="button"
@@ -163,15 +156,9 @@ export function OnboardingQuickStartFeed({
                 <p className="mt-4 text-lg font-semibold text-gray-900">
                   {hasPrimaryInput ? 'Product photo ready' : 'Click to upload product photo'}
                 </p>
-                <p className="mt-1 text-sm text-gray-500">JPG, PNG, WEBP up to 20MB</p>
               </button>
 
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm font-medium text-gray-600">
-                  {hasPrimaryInput
-                    ? 'Looks good. Generate now or replace the photo.'
-                    : 'Upload one product image to unlock generation.'}
-                </p>
                 <button
                   type="button"
                   onClick={onAddPrimaryInput}
@@ -196,9 +183,6 @@ export function OnboardingQuickStartFeed({
                 )}
               </div>
               <h4 className="mt-2 text-base font-semibold text-gray-900">{secondaryStep}</h4>
-              <p className="mt-2 text-sm text-gray-500">
-                Add a style/model reference only if you want stronger art direction.
-              </p>
               <button
                 type="button"
                 onClick={onAddSecondaryInput}
@@ -236,13 +220,6 @@ export function OnboardingQuickStartFeed({
               </div>
             </article>
           </div>
-        </div>
-
-        <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-          <span className="inline-flex items-center gap-2 font-semibold">
-            <Sparkles size={14} />
-            Your prompt and workflow are pre-configured from onboarding.
-          </span>
         </div>
       </div>
     </div>
