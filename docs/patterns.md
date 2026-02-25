@@ -71,6 +71,21 @@ Client-side:
   - `Change Garment`
   - `Change Subject`
 
+## Onboarding Intake Pattern
+
+- First-run onboarding is business-intent-first (industry + content goal), not tool-first.
+- Intake completion maps users to a recommended template/tool and preloads contextual prompt guidance.
+- Completion state is stored per-user in local storage (versioned key).
+- Intake choices are shown as large visual poster cards with optional media from:
+- `public/onboarding/industries/<industry-slug>.{webp|jpg|jpeg|png}`
+- `public/onboarding/goals/<goal-slug>.{webp|jpg|jpeg|png}`
+- Missing files gracefully fall back to gradient-only cards.
+- Card bodies prioritize title-only scanning for low-friction decision making.
+- Post-intake, users see a personalized quick-start feed (instead of default garment-first empty state) until dismissed or they begin input actions.
+- Quick-start step actions should keep users in the same context (open upload/modal in place) and must not auto-switch to garment-first fallback views.
+- Onboarding intake card grids scroll independently while footer actions remain fixed and always visible.
+- Legacy onboarding wizard is retained in codebase for rollback/reference but hidden from users.
+
 ## Template Pattern
 
 `TemplateOption` supports:
@@ -81,6 +96,8 @@ Client-side:
 - `generationMode` (when relevant)
 
 On `Use Template`, one prompt variant is selected and applied to the target tool.
+- Before applying a template, users choose product type in a dedicated visual picker.
+- Prompt text is then adapted from template flow + selected product type so non-garment users do not receive clothing-only prompt language.
 
 ## Brand DNA Pattern
 

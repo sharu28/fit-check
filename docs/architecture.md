@@ -12,7 +12,8 @@ Core surfaces:
 - Guide
 - Academy
 - Bulk background remover
-- First-run onboarding wizard
+- First-run onboarding questionnaire (industry + content-goal intake)
+- Personalized onboarding quick-start feed (post-intake guided sequence)
 - In-canvas Single Swap guide
 
 The backend handles auth, generation orchestration, credits, storage, gallery metadata, billing hooks, and shared model presets.
@@ -133,6 +134,13 @@ If Polar products are not configured, billing routes return `503` and app core s
 - Collapsed nav uses icons.
 - Image/Video are top-level tool entries.
 - Image nav defaults to Single Swap mode.
+- On first session, users see business-intake onboarding and are routed to a recommended starter use case.
+- Intake cards pull optional media from `public/onboarding/industries/<industry-slug>.{webp|jpg|jpeg|png}` and `public/onboarding/goals/<goal-slug>.{webp|jpg|jpeg|png}` (gradient fallback is used when files are missing).
+- Intake modal keeps footer actions fixed while card grids scroll, so navigation buttons stay visible.
+- Style Studio empty-state can switch to personalized quick-start feed driven by onboarding answers.
+- Quick-start input actions stay in-context (upload/modal) and do not auto-jump to garment-first fallback screens.
+- Template selection flow now includes product-type picker before prompt preload so template prompts can be industry-aware.
+- Legacy onboarding wizard remains in codebase but is not exposed to users.
 - Style Studio top bar includes quick rerun actions:
   - `Change Garment`
   - `Change Subject`

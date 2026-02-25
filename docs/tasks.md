@@ -15,9 +15,16 @@
 - [x] Added Launch Campaign Video template
 - [x] Added curated `presetPrompts` for templates that already had baked prompts
 - [x] `Use Template` now applies a selected preset prompt variant to the target tool
+- [x] Added template product-type picker and industry-aware prompt adaptation before template application
 
 ### Single Swap and Onboarding
 - [x] Added first-run onboarding wizard
+- [x] Added first-run business onboarding questionnaire (industry + content goal)
+- [x] Legacy onboarding wizard kept in codebase but hidden from end users
+- [x] Upgraded onboarding intake to large visual poster cards for industry and content-goal selection
+- [x] Added personalized post-intake quick-start feed to guide relevant first inputs and templates
+- [x] Fixed onboarding modal layout so card grid scrolls while footer actions stay visible
+- [x] Fixed quick-start step actions to keep users in-context (no fallback jump to garment-first view)
 - [x] Added Single Swap guided workflow with required-asset states
 - [x] Single Swap guide now remains visible for partial input states (subject-only or garment-only)
 - [x] Added direct upload actions inside Single Swap guide

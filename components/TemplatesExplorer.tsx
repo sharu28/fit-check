@@ -92,7 +92,7 @@ const TEMPLATE_PROMPT_PRESETS: Record<string, string[]> = {
   ],
 };
 
-const TEMPLATE_OPTIONS: TemplateOption[] = [
+export const TEMPLATE_OPTIONS: TemplateOption[] = [
   {
     id: 'single-swap',
     title: 'Single Swap',

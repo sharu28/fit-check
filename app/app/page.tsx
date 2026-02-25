@@ -18,18 +18,177 @@ import { Gallery } from '@/components/Gallery';
 import { ToastContainer } from '@/components/Toast';
 import { VideoGenerator } from '@/components/VideoGenerator';
 import { VideoControls } from '@/components/VideoControls';
-import { TemplatesExplorer, type TemplateOption } from '@/components/TemplatesExplorer';
+import {
+  TemplatesExplorer,
+  TEMPLATE_OPTIONS,
+  type TemplateOption,
+} from '@/components/TemplatesExplorer';
 import { BulkBackgroundRemover } from '@/components/BulkBackgroundRemover';
 import { AssistantWorkspace } from '@/components/AssistantWorkspace';
 import { GuideWorkspace } from '@/components/GuideWorkspace';
 import { AcademyWorkspace } from '@/components/AcademyWorkspace';
 import { SingleSwapGuide } from '@/components/SingleSwapGuide';
-import { OnboardingWizard } from '@/components/OnboardingWizard';
+import { OnboardingQuickStartFeed } from '@/components/OnboardingQuickStartFeed';
+import { TemplateIndustryPicker } from '@/components/TemplateIndustryPicker';
+import {
+  OnboardingQuestionnaire,
+  ONBOARDING_GOAL_LABELS,
+  ONBOARDING_INDUSTRY_LABELS,
+  type OnboardingGoal,
+  type OnboardingIndustry,
+} from '@/components/OnboardingQuestionnaire';
 import { DEFAULT_PROMPT, MAX_GARMENTS, MAX_FILE_SIZE_BYTES } from '@/lib/constants';
 import { fileToBase64, readFileToDataUrl } from '@/lib/utils';
 import { AppStatus, type UploadedImage, type GenerationMode, type ToolMode, type GalleryItem } from '@/types';
 import { PostHogIdentify } from '@/components/PostHogIdentify';
 import { Loader2, Images } from 'lucide-react';
+
+const ONBOARDING_GOAL_TEMPLATE_MAP: Record<OnboardingGoal, string> = {
+  'product-ads': 'product-ads',
+  'catalog-listings': 'marketplace-listings',
+  'editorial-shoot': 'lookbook-editorial',
+  'influencer-video': 'ugc-reels',
+  'launch-campaign': 'launch-campaign-video',
+  'whatsapp-status-pack': 'social-campaign',
+};
+
+type OnboardingSelection = {
+  industry: OnboardingIndustry;
+  goal: OnboardingGoal;
+};
+
+const ONBOARDING_GOAL_TOOL_MAP: Record<OnboardingGoal, ToolMode> = {
+  'product-ads': 'style-studio',
+  'catalog-listings': 'bg-remover',
+  'editorial-shoot': 'style-studio',
+  'influencer-video': 'video-generator',
+  'launch-campaign': 'video-generator',
+  'whatsapp-status-pack': 'style-studio',
+};
+
+const VALID_ONBOARDING_INDUSTRIES: OnboardingIndustry[] = [
+  'garments',
+  'fabrics',
+  'jewelry',
+  'footwear',
+  'bags',
+  'beauty',
+  'electronics',
+  'home-goods',
+  'other',
+];
+
+const VALID_ONBOARDING_GOALS: OnboardingGoal[] = [
+  'product-ads',
+  'catalog-listings',
+  'editorial-shoot',
+  'influencer-video',
+  'launch-campaign',
+  'whatsapp-status-pack',
+];
+
+function isValidIndustry(value: unknown): value is OnboardingIndustry {
+  return (
+    typeof value === 'string' &&
+    VALID_ONBOARDING_INDUSTRIES.includes(value as OnboardingIndustry)
+  );
+}
+
+function isValidGoal(value: unknown): value is OnboardingGoal {
+  return (
+    typeof value === 'string' &&
+    VALID_ONBOARDING_GOALS.includes(value as OnboardingGoal)
+  );
+}
+
+function isProductFirstIndustry(industry: OnboardingIndustry) {
+  return ['jewelry', 'beauty', 'electronics', 'home-goods', 'other'].includes(
+    industry,
+  );
+}
+
+function buildOnboardingPrompt(selection: OnboardingSelection) {
+  const industryLabel = ONBOARDING_INDUSTRY_LABELS[selection.industry];
+  switch (selection.goal) {
+    case 'product-ads':
+      return `Create a high-conversion product ad visual for ${industryLabel}. Keep the product as hero, use clean composition, premium lighting, and mobile-first framing for social commerce.`;
+    case 'catalog-listings':
+      return `Generate clean catalog-ready product visuals for ${industryLabel}. Ensure accurate colors, clear edges, uncluttered background, and marketplace-friendly composition.`;
+    case 'editorial-shoot':
+      return `Create an editorial campaign visual for ${industryLabel} with premium art direction, intentional mood, and polished brand storytelling.`;
+    case 'influencer-video':
+      return `Create a short influencer-style showcase video for ${industryLabel} products with engaging pacing and social-ready storytelling.`;
+    case 'launch-campaign':
+      return `Produce a launch campaign concept for ${industryLabel} with bold hero moments and promotional clarity for mobile audiences.`;
+    case 'whatsapp-status-pack':
+      return `Create a WhatsApp status-ready product creative for ${industryLabel} with clear pricing/CTA space and fast-scanning mobile layout.`;
+    default:
+      return DEFAULT_PROMPT;
+  }
+}
+
+function getIndustryProductLabel(industry: OnboardingIndustry) {
+  switch (industry) {
+    case 'garments':
+      return 'garment';
+    case 'fabrics':
+      return 'fabric product';
+    case 'jewelry':
+      return 'jewelry piece';
+    case 'footwear':
+      return 'footwear product';
+    case 'bags':
+      return 'bag product';
+    case 'beauty':
+      return 'beauty product';
+    case 'electronics':
+      return 'electronic product';
+    case 'home-goods':
+      return 'home product';
+    default:
+      return 'physical product';
+  }
+}
+
+function buildIndustryAwareTemplatePrompt(
+  template: TemplateOption,
+  industry: OnboardingIndustry,
+  basePrompt: string,
+) {
+  if (industry === 'garments') return basePrompt;
+
+  const industryLabel = ONBOARDING_INDUSTRY_LABELS[industry];
+  const productLabel = getIndustryProductLabel(industry);
+
+  switch (template.id) {
+    case 'single-swap':
+      return `Create one polished hero image featuring the uploaded ${productLabel} for ${industryLabel}. Keep product shape, color, logo, and material details accurate with clean premium lighting and mobile-first composition.`;
+    case 'multi-shot':
+      return `Generate a 2x2 creative set for the uploaded ${productLabel} in ${industryLabel}. Show four distinct angles or scene variations while preserving exact product details and brand consistency.`;
+    case 'website-shoot':
+      return `Create a storefront-ready website hero visual for the uploaded ${productLabel} in ${industryLabel}. Use clean composition, premium lighting, and conversion-focused framing.`;
+    case 'social-campaign':
+      return `Create a social campaign visual for the uploaded ${productLabel} in ${industryLabel} with bold framing, high contrast, and fast-scanning mobile composition.`;
+    case 'product-ads':
+      return `Design a conversion-focused product ad visual for the uploaded ${productLabel} in ${industryLabel}. Keep product clarity high, include CTA-safe space, and maintain accurate materials/colors.`;
+    case 'launch-campaign-video':
+      return `Create a launch campaign video for the uploaded ${productLabel} in ${industryLabel} with high-energy pacing, product-first storytelling, and clear promotional moments for social channels.`;
+    case 'remove-background-batch':
+      return `Remove backgrounds cleanly from uploaded ${industryLabel} product photos while preserving edge detail and true product color.`;
+    case 'rotation-360':
+      return `Create a smooth 360 rotation video of the uploaded ${productLabel} in ${industryLabel} with stable motion, clean background, and clear material visibility from all angles.`;
+    case 'lookbook-editorial':
+      return `Create an editorial campaign visual for the uploaded ${productLabel} in ${industryLabel} with art-directed composition, premium styling, and strong brand storytelling.`;
+    case 'ugc-reels':
+      return `Create a short UGC-style promo video for the uploaded ${productLabel} in ${industryLabel} with authentic pacing, product close-ups, and social-ready framing.`;
+    case 'seasonal-drop':
+      return `Create a seasonal launch visual for the uploaded ${productLabel} in ${industryLabel} with timely mood, strong product focus, and campaign-ready polish.`;
+    case 'marketplace-listings':
+      return `Generate a clean marketplace listing visual for the uploaded ${productLabel} in ${industryLabel} with neutral background, accurate colors, and platform-safe composition.`;
+    default:
+      return `${basePrompt} Focus on ${industryLabel} products, not clothing try-on. Keep product details accurate and clearly visible.`;
+  }
+}
 
 export default function HomePage() {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -62,28 +221,57 @@ export default function HomePage() {
   const [activeSection, setActiveSection] = useState<'home' | 'templates' | 'assistant' | 'guide' | 'academy'>('templates');
   const [isMenuOpen, setIsMenuOpen] = useState(true);
   const [showOnboardingWizard, setShowOnboardingWizard] = useState(false);
-  const [onboardingOutput, setOnboardingOutput] = useState<'image' | 'video'>('image');
+  const [onboardingSelection, setOnboardingSelection] = useState<OnboardingSelection | null>(null);
+  const [hideOnboardingQuickStart, setHideOnboardingQuickStart] = useState(false);
+  const [showTemplateIndustryPicker, setShowTemplateIndustryPicker] = useState(false);
+  const [pendingTemplateSelection, setPendingTemplateSelection] = useState<TemplateOption | null>(null);
+  const [templateIndustryPreference, setTemplateIndustryPreference] = useState<OnboardingIndustry>('garments');
   const [guideFocusTarget, setGuideFocusTarget] = useState<'garment' | 'subject' | null>(null);
   const subjectSectionRef = useRef<HTMLDivElement | null>(null);
   const garmentSectionRef = useRef<HTMLDivElement | null>(null);
   const quickGarmentInputRef = useRef<HTMLInputElement | null>(null);
-  const onboardingStorageKey = user?.id ? `fitcheck:onboarding:completed:${user.id}` : null;
+  const onboardingStorageKey = user?.id ? `fitcheck:onboarding:intake:v1:${user.id}` : null;
 
   useEffect(() => {
     if (!onboardingStorageKey) {
       setShowOnboardingWizard(false);
+      setOnboardingSelection(null);
       return;
     }
 
     let isCompleted = false;
+    let loadedSelection: OnboardingSelection | null = null;
     try {
-      isCompleted = window.localStorage.getItem(onboardingStorageKey) === '1';
+      const rawValue = window.localStorage.getItem(onboardingStorageKey);
+      if (rawValue === '1') {
+        isCompleted = true;
+      } else if (rawValue) {
+        const parsed = JSON.parse(rawValue) as {
+          industry?: unknown;
+          goal?: unknown;
+        };
+        if (isValidIndustry(parsed?.industry) && isValidGoal(parsed?.goal)) {
+          loadedSelection = {
+            industry: parsed.industry,
+            goal: parsed.goal,
+          };
+          isCompleted = true;
+        }
+      }
     } catch {
       isCompleted = false;
+      loadedSelection = null;
+    }
+
+    setOnboardingSelection(loadedSelection);
+    setHideOnboardingQuickStart(false);
+    if (loadedSelection?.industry) {
+      setTemplateIndustryPreference(loadedSelection.industry);
     }
 
     if (isCompleted) {
       setShowOnboardingWizard(false);
+      setActiveSection('home');
       return;
     }
 
@@ -313,12 +501,26 @@ export default function HomePage() {
     if (err) addToast(err, 'info');
   }, [credits, video, addToast]);
 
-  const completeOnboarding = useCallback(() => {
+  const completeOnboarding = useCallback((selection?: OnboardingSelection) => {
     setShowOnboardingWizard(false);
+    setOnboardingSelection(selection ?? null);
+    setHideOnboardingQuickStart(false);
     if (!onboardingStorageKey) return;
 
     try {
-      window.localStorage.setItem(onboardingStorageKey, '1');
+      if (selection) {
+        window.localStorage.setItem(
+          onboardingStorageKey,
+          JSON.stringify({
+            completed: true,
+            industry: selection.industry,
+            goal: selection.goal,
+            completedAt: Date.now(),
+          }),
+        );
+      } else {
+        window.localStorage.setItem(onboardingStorageKey, '1');
+      }
     } catch {
       // Ignore storage failures and continue.
     }
@@ -339,24 +541,6 @@ export default function HomePage() {
     return { file, previewUrl, base64, mimeType: file.type };
   }, [addToast]);
 
-  const handleOnboardingGarmentUpload = useCallback(async (file: File) => {
-    const uploaded = await buildUploadedImage(file);
-    if (!uploaded) return;
-
-    setGarments((prev) => {
-      if (prev.length === 0) return [uploaded];
-      const next = [...prev];
-      next[0] = uploaded;
-      return next;
-    });
-  }, [buildUploadedImage]);
-
-  const handleOnboardingSubjectUpload = useCallback(async (file: File) => {
-    const uploaded = await buildUploadedImage(file);
-    if (!uploaded) return;
-    setPersonImage(uploaded);
-  }, [buildUploadedImage]);
-
   const handleSingleSwapGarmentUpload = useCallback(async (file: File) => {
     const uploaded = await buildUploadedImage(file);
     if (!uploaded) return;
@@ -375,8 +559,12 @@ export default function HomePage() {
     setPersonImage(uploaded);
   }, [buildUploadedImage]);
 
-  const handleOnboardingOpenSubjectLibrary = useCallback(() => {
-    setCurrentTool('style-studio');
+  const handleQuickStartPrimaryAction = useCallback(() => {
+    setActiveSection('home');
+    quickGarmentInputRef.current?.click();
+  }, []);
+
+  const handleQuickStartSecondaryAction = useCallback(() => {
     setActiveSection('home');
     setShowSubjectModal(true);
   }, []);
@@ -388,10 +576,21 @@ export default function HomePage() {
     return presets[index];
   }, []);
 
-  const handleUseTemplate = useCallback((template: TemplateOption) => {
-    const selectedPrompt = pickTemplatePrompt(template);
+  const applyTemplateSelection = useCallback((
+    template: TemplateOption,
+    options?: {
+      promptContext?: string;
+      successMessage?: string;
+      promptOverride?: string;
+    },
+  ) => {
+    const selectedPrompt = options?.promptOverride ?? pickTemplatePrompt(template);
+    const resolvedPrompt = options?.promptContext
+      ? `${selectedPrompt} ${options.promptContext}`.trim()
+      : selectedPrompt;
+
     if (template.targetTool === 'style-studio') {
-      setPrompt(selectedPrompt);
+      setPrompt(resolvedPrompt);
       if (template.generationMode) {
         setMode(template.generationMode);
       }
@@ -400,14 +599,56 @@ export default function HomePage() {
         setIsMenuOpen(true);
       }
     } else if (template.targetTool === 'video-generator') {
-      video.setPrompt(selectedPrompt);
+      video.setPrompt(resolvedPrompt);
       setCurrentTool('video-generator');
     } else {
       setCurrentTool('bg-remover');
     }
     setActiveSection('home');
-    addToast(`${template.title} loaded. Customize and generate when ready.`, 'success');
+    addToast(
+      options?.successMessage ??
+        `${template.title} loaded. Customize and generate when ready.`,
+      'success',
+    );
   }, [pickTemplatePrompt, video, addToast]);
+
+  const handleUseTemplate = useCallback((template: TemplateOption) => {
+    setPendingTemplateSelection(template);
+    setShowTemplateIndustryPicker(true);
+  }, []);
+
+  const handleCloseTemplateIndustryPicker = useCallback(() => {
+    setShowTemplateIndustryPicker(false);
+    setPendingTemplateSelection(null);
+  }, []);
+
+  const handleTemplateIndustryConfirm = useCallback((industry: OnboardingIndustry) => {
+    if (!pendingTemplateSelection) {
+      setShowTemplateIndustryPicker(false);
+      return;
+    }
+
+    const basePrompt = pickTemplatePrompt(pendingTemplateSelection);
+    const industryPrompt = buildIndustryAwareTemplatePrompt(
+      pendingTemplateSelection,
+      industry,
+      basePrompt,
+    );
+
+    setTemplateIndustryPreference(industry);
+    applyTemplateSelection(pendingTemplateSelection, {
+      promptOverride: industryPrompt,
+      successMessage: `${pendingTemplateSelection.title} loaded for ${ONBOARDING_INDUSTRY_LABELS[industry]}. Upload your product image to continue.`,
+    });
+    setShowTemplateIndustryPicker(false);
+    setPendingTemplateSelection(null);
+
+    if (pendingTemplateSelection.targetTool === 'style-studio') {
+      window.setTimeout(() => {
+        quickGarmentInputRef.current?.click();
+      }, 140);
+    }
+  }, [pendingTemplateSelection, pickTemplatePrompt, applyTemplateSelection]);
 
   const navigateHome = useCallback(() => {
     setActiveSection('home');
@@ -443,57 +684,63 @@ export default function HomePage() {
   const hasSubject = Boolean(personImage);
   const hasGarment = garments.length > 0;
   const canGenerateFromInputs = hasSubject && hasGarment;
+  const useProductLanguage =
+    onboardingSelection && isProductFirstIndustry(onboardingSelection.industry);
+  const primaryInputActionLabel = useProductLanguage
+    ? 'Change Product Photo'
+    : 'Change Garment';
+  const secondaryInputActionLabel = useProductLanguage
+    ? 'Change Reference Image'
+    : 'Change Subject';
+  const dynamicBlockedReason =
+    useProductLanguage
+      ? 'Upload product photo and reference image first'
+      : 'Upload a garment and choose a subject first';
 
-  const handleOnboardingGenerate = useCallback(async () => {
-    if (!hasGarment) {
-      addToast('Please upload a garment first.', 'info');
-      return;
-    }
-    if (!hasSubject) {
-      addToast('Please choose a subject first.', 'info');
-      return;
-    }
-    if (credits !== null && credits <= 0) {
-      addToast('You are out of credits. Upgrade your plan to continue.', 'error');
-      window.location.href = '/pricing';
-      return;
-    }
+  const handleOnboardingQuestionnaireComplete = useCallback((
+    selection: { industry: OnboardingIndustry; goal: OnboardingGoal },
+  ) => {
+    const selectedTool = ONBOARDING_GOAL_TOOL_MAP[selection.goal];
+    const industryLabel = ONBOARDING_INDUSTRY_LABELS[selection.industry];
+    const goalLabel = ONBOARDING_GOAL_LABELS[selection.goal];
+    const intakePrompt = buildOnboardingPrompt(selection);
+    const templateId = ONBOARDING_GOAL_TEMPLATE_MAP[selection.goal];
+    const template = TEMPLATE_OPTIONS.find((option) => option.id === templateId);
 
-    setActiveSection('home');
-
-    if (onboardingOutput === 'video') {
+    if (selectedTool === 'video-generator') {
       setCurrentTool('video-generator');
-      const onboardingVideoPrompt = 'Create a short fashion showcase video highlighting outfit details and movement.';
-      if (!video.prompt.trim()) {
-        video.setPrompt(onboardingVideoPrompt);
-      }
-      if (!video.referenceImage && personImage) {
-        video.setReferenceImage(personImage);
-      }
-      completeOnboarding();
-      await handleVideoGenerate(video.prompt.trim() ? undefined : onboardingVideoPrompt);
-      return;
+      video.setPrompt(intakePrompt);
+      setActiveSection('home');
+      setIsMenuOpen(true);
+    } else if (selectedTool === 'bg-remover') {
+      setCurrentTool('bg-remover');
+      setActiveSection('home');
+      setIsMenuOpen(true);
+    } else {
+      setCurrentTool('style-studio');
+      setMode(template?.generationMode ?? 'single');
+      setPrompt(intakePrompt);
+      setScene('');
+      setVisualStyle('');
+      setActiveSection('home');
+      setIsMenuOpen(true);
     }
 
-    setCurrentTool('style-studio');
-    if (!prompt.trim()) {
-      setPrompt(DEFAULT_PROMPT);
-    }
-    completeOnboarding();
-    handleGenerate();
-  }, [
-    hasGarment,
-    hasSubject,
-    credits,
-    onboardingOutput,
-    video,
-    personImage,
-    completeOnboarding,
-    handleVideoGenerate,
-    prompt,
-    handleGenerate,
-    addToast,
-  ]);
+    setTemplateIndustryPreference(selection.industry);
+    setHideOnboardingQuickStart(false);
+    completeOnboarding(selection);
+    addToast(`Workspace set for ${goalLabel} in ${industryLabel}.`, 'success');
+  }, [video, completeOnboarding, addToast]);
+
+  const showPersonalizedQuickStart =
+    activeSection === 'home' &&
+    currentTool === 'style-studio' &&
+    mode === 'single' &&
+    !gallery.showLibrary &&
+    !showOnboardingWizard &&
+    generation.status !== AppStatus.GENERATING &&
+    Boolean(onboardingSelection) &&
+    !hideOnboardingQuickStart;
 
   const showSingleSwapGuide =
     activeSection === 'home' &&
@@ -501,7 +748,18 @@ export default function HomePage() {
     mode === 'single' &&
     !gallery.showLibrary &&
     !showOnboardingWizard &&
-    generation.status !== AppStatus.GENERATING;
+    generation.status !== AppStatus.GENERATING &&
+    !onboardingSelection;
+
+  const showOnboardingEmptyState =
+    activeSection === 'home' &&
+    currentTool === 'style-studio' &&
+    mode === 'single' &&
+    !gallery.showLibrary &&
+    !showOnboardingWizard &&
+    generation.status !== AppStatus.GENERATING &&
+    Boolean(onboardingSelection) &&
+    hideOnboardingQuickStart;
 
   // Auth loading state
   if (authLoading) {
@@ -645,14 +903,14 @@ export default function HomePage() {
                   onClick={() => quickGarmentInputRef.current?.click()}
                   className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
                 >
-                  Change Garment
+                  {primaryInputActionLabel}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowSubjectModal(true)}
                   className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
                 >
-                  Change Subject
+                  {secondaryInputActionLabel}
                 </button>
                 <input
                   ref={quickGarmentInputRef}
@@ -664,6 +922,7 @@ export default function HomePage() {
                     if (file) {
                       void handleSingleSwapGarmentUpload(file);
                     }
+                    event.currentTarget.value = '';
                   }}
                 />
               </div>
@@ -718,7 +977,18 @@ export default function HomePage() {
                   onRemoveBg={handleRemoveBg}
                   removingBgId={removingBgId}
                   emptyState={
-                    showSingleSwapGuide ? (
+                    showPersonalizedQuickStart && onboardingSelection ? (
+                      <OnboardingQuickStartFeed
+                        industry={onboardingSelection.industry}
+                        goal={onboardingSelection.goal}
+                        hasPrimaryInput={hasGarment}
+                        hasSecondaryInput={hasSubject}
+                        onAddPrimaryInput={handleQuickStartPrimaryAction}
+                        onAddSecondaryInput={handleQuickStartSecondaryAction}
+                        onOpenTemplates={navigateTemplates}
+                        onDismiss={() => setHideOnboardingQuickStart(true)}
+                      />
+                    ) : showSingleSwapGuide ? (
                       <SingleSwapGuide
                         hasGarment={hasGarment}
                         hasSubject={hasSubject}
@@ -729,6 +999,36 @@ export default function HomePage() {
                         onAddGarment={() => focusGuideTarget('garment')}
                         onAddSubject={() => focusGuideTarget('subject')}
                       />
+                    ) : showOnboardingEmptyState ? (
+                      <div className="flex min-h-[420px] items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white p-6">
+                        <div className="max-w-xl text-center">
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                            Workspace Ready
+                          </p>
+                          <h3 className="mt-2 text-2xl font-semibold text-gray-900">
+                            Add your two inputs to generate
+                          </h3>
+                          <p className="mt-2 text-sm text-gray-600">
+                            Use the top actions to upload a product photo and a reference image.
+                          </p>
+                          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={handleQuickStartPrimaryAction}
+                              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                            >
+                              {primaryInputActionLabel}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleQuickStartSecondaryAction}
+                              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                            >
+                              {secondaryInputActionLabel}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     ) : undefined
                   }
                 />
@@ -751,7 +1051,7 @@ export default function HomePage() {
                 }
                 credits={credits}
                 canGenerate={canGenerateFromInputs}
-                blockedReason="Upload a garment and choose a subject first"
+                blockedReason={dynamicBlockedReason}
               />
             )}
           </>
@@ -795,21 +1095,18 @@ export default function HomePage() {
         )}
       </main>
 
-      <OnboardingWizard
+      <TemplateIndustryPicker
+        isOpen={showTemplateIndustryPicker}
+        templateTitle={pendingTemplateSelection?.title ?? 'Selected Template'}
+        initialIndustry={onboardingSelection?.industry ?? templateIndustryPreference}
+        onClose={handleCloseTemplateIndustryPicker}
+        onConfirm={handleTemplateIndustryConfirm}
+      />
+
+      <OnboardingQuestionnaire
         isOpen={showOnboardingWizard}
-        hasGarment={hasGarment}
-        hasSubject={hasSubject}
-        garmentPreviewUrl={garments[0]?.previewUrl}
-        subjectPreviewUrl={personImage?.previewUrl}
-        selectedOutput={onboardingOutput}
-        onOutputChange={setOnboardingOutput}
-        onUploadGarment={handleOnboardingGarmentUpload}
-        onUploadSubject={handleOnboardingSubjectUpload}
-        onOpenSubjectLibrary={handleOnboardingOpenSubjectLibrary}
-        onGenerate={() => {
-          void handleOnboardingGenerate();
-        }}
         onSkip={completeOnboarding}
+        onComplete={handleOnboardingQuestionnaireComplete}
       />
 
       {/* Subject Selection Modal */}
