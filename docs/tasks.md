@@ -64,6 +64,7 @@
 - [x] Updated `docs/architecture.md`
 - [x] Updated `docs/patterns.md`
 - [x] Updated `docs/tasks.md`
+- [x] Added frontend skill-pack doc from `find-skills` results with repo-specific usage mapping (`docs/frontend-skill-pack.md`)
 
 ---
 

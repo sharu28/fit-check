@@ -148,3 +148,8 @@ Key principle: UI gallery is metadata-driven (`gallery_items` is source of truth
 - Capture fresh local screenshots before marking UI work complete.
 - Check no overlap, clipping, or spacing regression on desktop and mobile.
 - Ensure interactive controls have accessible names and visible focus styles.
+
+## Frontend Skill Usage
+
+- External frontend skill stack and install commands are documented in `docs/frontend-skill-pack.md`.
+- Apply those skills primarily to onboarding, quick-start feed, upload/dropzone cards, and prompt/action surfaces.
