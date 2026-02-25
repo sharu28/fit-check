@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
-import { Sparkles, ArrowRight, Minus, Plus } from 'lucide-react';
+import { ArrowRight, Minus, Plus } from 'lucide-react';
 import { AppStatus } from '@/types';
 
 const HINTS = [
@@ -68,13 +68,9 @@ export function PromptBar({
   const canIncrease = generationCount < maxGenerations && !isGenerating;
 
   return (
-    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-30">
-      <div className="bg-white p-2 pl-4 rounded-[2rem] shadow-2xl flex items-end gap-3 border border-gray-200 transition-all focus-within:ring-4 ring-gray-100">
-        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-500 mb-1">
-          <Sparkles size={14} />
-        </div>
-
-        <div className="relative flex-1 py-2.5">
+    <div className="absolute bottom-10 left-1/2 z-30 w-full max-w-[84rem] -translate-x-1/2 px-4 md:px-6">
+      <div className="flex items-end gap-3 rounded-[2rem] border border-gray-200 bg-white p-2 shadow-2xl transition-all ring-gray-100 focus-within:ring-4">
+        <div className="relative flex-1 py-2.5 pl-1">
           {showHint && (
             <div className="absolute inset-0 flex items-center overflow-hidden pointer-events-none">
               <span

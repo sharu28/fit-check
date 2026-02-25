@@ -129,7 +129,7 @@ export function OnboardingQuickStartFeed({
           <article className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
-                Step 2
+                Step 2 (Optional)
               </p>
               {hasSecondaryInput ? (
                 <CheckCircle2 size={16} className="text-emerald-600" />
@@ -138,6 +138,7 @@ export function OnboardingQuickStartFeed({
               )}
             </div>
             <h4 className="mt-2 text-base font-semibold text-gray-900">{secondaryStep}</h4>
+            <p className="mt-1 text-sm text-gray-500">Skip this if you want to generate with only your product photo.</p>
             <button
               type="button"
               onClick={onAddSecondaryInput}

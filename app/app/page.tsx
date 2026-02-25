@@ -348,17 +348,23 @@ export default function HomePage() {
       window.location.href = '/pricing';
       return;
     }
-    if (!personImage) {
-      addToast('Please select a subject model first.', 'info');
-      return;
-    }
     if (garments.length === 0) {
       addToast('Please add at least one garment.', 'info');
       return;
     }
 
+    const useProductOnlyFallback =
+      onboardingSelection && isProductFirstIndustry(onboardingSelection.industry);
+    const effectivePersonImage =
+      personImage ?? (useProductOnlyFallback ? garments[0] : null);
+
+    if (!effectivePersonImage) {
+      addToast('Please select a subject model first.', 'info');
+      return;
+    }
+
     generation.generateImage({
-      personImage,
+      personImage: effectivePersonImage,
       garments,
       prompt: prompt || DEFAULT_PROMPT,
       mode,
@@ -368,7 +374,7 @@ export default function HomePage() {
       resolution,
       numGenerations: generationCount,
     });
-  }, [credits, personImage, garments, prompt, mode, scene, visualStyle, aspectRatio, resolution, generationCount, generation, addToast]);
+  }, [credits, personImage, garments, prompt, mode, scene, visualStyle, aspectRatio, resolution, generationCount, generation, addToast, onboardingSelection]);
 
   const focusGuideTarget = useCallback((target: 'garment' | 'subject') => {
     setActiveSection('home');
@@ -683,18 +689,27 @@ export default function HomePage() {
 
   const hasSubject = Boolean(personImage);
   const hasGarment = garments.length > 0;
-  const canGenerateFromInputs = hasSubject && hasGarment;
-  const useProductLanguage =
-    onboardingSelection && isProductFirstIndustry(onboardingSelection.industry);
+  const useProductLanguage = Boolean(
+    onboardingSelection && isProductFirstIndustry(onboardingSelection.industry),
+  );
+  const canGenerateFromInputs = useProductLanguage ? hasGarment : hasSubject && hasGarment;
   const primaryInputActionLabel = useProductLanguage
-    ? 'Change Product Photo'
-    : 'Change Garment';
+    ? hasGarment
+      ? 'Change Product Photo'
+      : 'Upload Product Photo'
+    : hasGarment
+      ? 'Change Garment'
+      : 'Upload Garment';
   const secondaryInputActionLabel = useProductLanguage
-    ? 'Change Reference Image'
-    : 'Change Subject';
+    ? hasSubject
+      ? 'Change Reference Image'
+      : 'Add Reference Image (Optional)'
+    : hasSubject
+      ? 'Change Subject'
+      : 'Choose Subject';
   const dynamicBlockedReason =
     useProductLanguage
-      ? 'Upload product photo and reference image first'
+      ? 'Upload a product photo first'
       : 'Upload a garment and choose a subject first';
 
   const handleOnboardingQuestionnaireComplete = useCallback((
@@ -711,11 +726,11 @@ export default function HomePage() {
       setCurrentTool('video-generator');
       video.setPrompt(intakePrompt);
       setActiveSection('home');
-      setIsMenuOpen(true);
+      setIsMenuOpen(false);
     } else if (selectedTool === 'bg-remover') {
       setCurrentTool('bg-remover');
       setActiveSection('home');
-      setIsMenuOpen(true);
+      setIsMenuOpen(false);
     } else {
       setCurrentTool('style-studio');
       setMode(template?.generationMode ?? 'single');
@@ -723,7 +738,7 @@ export default function HomePage() {
       setScene('');
       setVisualStyle('');
       setActiveSection('home');
-      setIsMenuOpen(true);
+      setIsMenuOpen(false);
     }
 
     setTemplateIndustryPreference(selection.industry);
@@ -897,35 +912,26 @@ export default function HomePage() {
           <>
             {/* Top Bar - Gallery Toggle */}
             <div className="p-4 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => quickGarmentInputRef.current?.click()}
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-                >
-                  {primaryInputActionLabel}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowSubjectModal(true)}
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-                >
-                  {secondaryInputActionLabel}
-                </button>
-                <input
-                  ref={quickGarmentInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="sr-only"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) {
-                      void handleSingleSwapGarmentUpload(file);
-                    }
-                    event.currentTarget.value = '';
-                  }}
-                />
-              </div>
+              {!onboardingSelection ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => quickGarmentInputRef.current?.click()}
+                    className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                  >
+                    {primaryInputActionLabel}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSubjectModal(true)}
+                    className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                  >
+                    {secondaryInputActionLabel}
+                  </button>
+                </div>
+              ) : (
+                <div />
+              )}
 
               <div className="flex items-center gap-2">
                 <button
@@ -947,6 +953,20 @@ export default function HomePage() {
                 </button>
               </div>
             </div>
+
+            <input
+              ref={quickGarmentInputRef}
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) {
+                  void handleSingleSwapGarmentUpload(file);
+                }
+                event.currentTarget.value = '';
+              }}
+            />
 
             {/* Result / Gallery Area */}
             <div className="flex-1 px-8 pb-24">
@@ -1006,10 +1026,12 @@ export default function HomePage() {
                             Workspace Ready
                           </p>
                           <h3 className="mt-2 text-2xl font-semibold text-gray-900">
-                            Add your two inputs to generate
+                            {useProductLanguage ? 'Add your product to generate' : 'Add your two inputs to generate'}
                           </h3>
                           <p className="mt-2 text-sm text-gray-600">
-                            Use the top actions to upload a product photo and a reference image.
+                            {useProductLanguage
+                              ? 'Upload your product photo first. Reference image is optional.'
+                              : 'Upload a garment and choose a subject to start generating.'}
                           </p>
                           <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
                             <button
