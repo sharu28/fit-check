@@ -234,9 +234,12 @@ export default function HomePage() {
   const [videoTemplateSourceUrl, setVideoTemplateSourceUrl] = useState<string | null>(null);
   const [templateIndustryPreference, setTemplateIndustryPreference] = useState<OnboardingIndustry>('garments');
   const [guideFocusTarget, setGuideFocusTarget] = useState<'garment' | 'subject' | null>(null);
+  const [showImageToVideoPrompt, setShowImageToVideoPrompt] = useState(false);
+  const [imageToVideoPrompt, setImageToVideoPrompt] = useState('');
   const subjectSectionRef = useRef<HTMLDivElement | null>(null);
   const garmentSectionRef = useRef<HTMLDivElement | null>(null);
   const quickGarmentInputRef = useRef<HTMLInputElement | null>(null);
+  const quickVideoReferenceInputRef = useRef<HTMLInputElement | null>(null);
   const onboardingStorageKey = user?.id ? `fitcheck:onboarding:intake:v1:${user.id}` : null;
 
   useEffect(() => {
@@ -360,18 +363,8 @@ export default function HomePage() {
       return;
     }
 
-    const useProductOnlyFallback =
-      onboardingSelection && isProductFirstIndustry(onboardingSelection.industry);
-    const effectivePersonImage =
-      personImage ?? (useProductOnlyFallback ? garments[0] : null);
-
-    if (!effectivePersonImage) {
-      addToast('Please select a subject model first.', 'info');
-      return;
-    }
-
     generation.generateImage({
-      personImage: effectivePersonImage,
+      personImage,
       garments,
       prompt: prompt || DEFAULT_PROMPT,
       mode,
@@ -381,7 +374,7 @@ export default function HomePage() {
       resolution,
       numGenerations: generationCount,
     });
-  }, [credits, personImage, garments, prompt, mode, scene, visualStyle, aspectRatio, resolution, generationCount, generation, addToast, onboardingSelection]);
+  }, [credits, personImage, garments, prompt, mode, scene, visualStyle, aspectRatio, resolution, generationCount, generation, addToast]);
 
   const focusGuideTarget = useCallback((target: 'garment' | 'subject') => {
     setActiveSection('home');
@@ -601,6 +594,27 @@ export default function HomePage() {
     setPersonImage(uploaded);
   }, [buildUploadedImage]);
 
+  const handleVideoReferenceUpload = useCallback(async (file: File) => {
+    const uploaded = await buildUploadedImage(file);
+    if (!uploaded) return;
+    video.setReferenceImage(uploaded);
+    addToast('Video reference image ready.', 'success');
+  }, [buildUploadedImage, video, addToast]);
+
+  const handleVideoReferenceGallerySelect = useCallback(
+    async (item: GalleryItem) => {
+      try {
+        const uploadedImage = await gallery.selectGalleryItem(item);
+        video.setReferenceImage(uploadedImage);
+        gallery.setShowLibrary(false);
+        addToast('Reference image selected for video generation.', 'success');
+      } catch {
+        addToast('Failed to load image from gallery.', 'error');
+      }
+    },
+    [gallery, video, addToast],
+  );
+
   const handleQuickStartPrimaryAction = useCallback(() => {
     setActiveSection('home');
     quickGarmentInputRef.current?.click();
@@ -785,12 +799,67 @@ export default function HomePage() {
     setActiveSection('academy');
   }, []);
 
+  const latestImageForVideoUrl =
+    generation.resultImage ?? gallery.generations[0]?.url ?? null;
+
+  const handleGenerateVideoFromImageScreen = useCallback(async () => {
+    if (credits !== null && credits <= 0) {
+      addToast('You are out of credits. Upgrade your plan to continue.', 'error');
+      window.location.href = '/pricing';
+      return;
+    }
+
+    if (!latestImageForVideoUrl) {
+      addToast('Generate at least one image first, then create a video from it.', 'info');
+      return;
+    }
+
+    const trimmedPrompt = imageToVideoPrompt.trim();
+    if (!trimmedPrompt) {
+      addToast('Please enter a prompt for the video.', 'info');
+      return;
+    }
+
+    try {
+      const referenceImage = await buildUploadedImageFromUrl(latestImageForVideoUrl);
+      video.setReferenceImage(referenceImage);
+      video.setPrompt(trimmedPrompt);
+
+      const err = await video.generate(trimmedPrompt);
+      if (err) {
+        addToast(err, 'info');
+        return;
+      }
+
+      setShowImageToVideoPrompt(false);
+      setImageToVideoPrompt('');
+      setCurrentTool('video-generator');
+      setActiveSection('home');
+      gallery.setShowLibrary(false);
+    } catch (error) {
+      addToast(
+        error instanceof Error
+          ? error.message
+          : 'Failed to prepare image for video generation.',
+        'error',
+      );
+    }
+  }, [
+    credits,
+    latestImageForVideoUrl,
+    imageToVideoPrompt,
+    buildUploadedImageFromUrl,
+    video,
+    addToast,
+    gallery,
+  ]);
+
   const hasSubject = Boolean(personImage);
   const hasGarment = garments.length > 0;
   const useProductLanguage = Boolean(
     onboardingSelection && isProductFirstIndustry(onboardingSelection.industry),
   );
-  const canGenerateFromInputs = useProductLanguage ? hasGarment : hasSubject && hasGarment;
+  const canGenerateFromInputs = hasGarment;
   const primaryInputActionLabel = useProductLanguage
     ? hasGarment
       ? 'Change Product Photo'
@@ -798,17 +867,10 @@ export default function HomePage() {
     : hasGarment
       ? 'Change Garment'
       : 'Upload Garment';
-  const secondaryInputActionLabel = useProductLanguage
-    ? hasSubject
-      ? 'Change Reference Image'
-      : 'Add Reference Image (Optional)'
-    : hasSubject
-      ? 'Change Subject'
-      : 'Choose Subject';
-  const dynamicBlockedReason =
-    useProductLanguage
-      ? 'Upload a product photo first'
-      : 'Upload a garment and choose a subject first';
+  const secondaryInputActionLabel = hasSubject
+    ? 'Change Subject Reference (Optional)'
+    : 'Add Subject Reference (Optional)';
+  const dynamicBlockedReason = 'Upload a garment first';
 
   const handleOnboardingQuestionnaireComplete = useCallback((
     selection: { industry: OnboardingIndustry; goal: OnboardingGoal },
@@ -1033,6 +1095,23 @@ export default function HomePage() {
 
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
+                  onClick={() => setShowImageToVideoPrompt((prev) => !prev)}
+                  disabled={!latestImageForVideoUrl}
+                  title={
+                    latestImageForVideoUrl
+                      ? undefined
+                      : 'Generate an image first to create a video.'
+                  }
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
+                    showImageToVideoPrompt
+                      ? 'bg-indigo-50 text-indigo-600 border-indigo-200'
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  Create Video
+                </button>
+                <button
                   onClick={navigateTemplates}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
                 >
@@ -1051,6 +1130,43 @@ export default function HomePage() {
                 </button>
               </div>
             </div>
+
+            {showImageToVideoPrompt && !gallery.showLibrary && (
+              <div className="px-4 pb-3">
+                <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
+                    Image to Video
+                  </p>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Use your latest generated image as the reference frame.
+                  </p>
+                  <textarea
+                    value={imageToVideoPrompt}
+                    onChange={(event) => setImageToVideoPrompt(event.target.value)}
+                    placeholder="Describe the motion, camera movement, and scene..."
+                    className="mt-3 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                    rows={3}
+                  />
+                  <div className="mt-3 flex flex-wrap justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowImageToVideoPrompt(false)}
+                      className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleGenerateVideoFromImageScreen()}
+                      disabled={video.status === 'generating'}
+                      className="rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
+                    >
+                      {video.status === 'generating' ? 'Generating...' : 'Generate Video'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <input
               ref={quickGarmentInputRef}
@@ -1128,12 +1244,12 @@ export default function HomePage() {
                             Workspace Ready
                           </p>
                           <h3 className="mt-2 text-2xl font-semibold text-gray-900">
-                            {useProductLanguage ? 'Add your product to generate' : 'Add your two inputs to generate'}
+                            {useProductLanguage
+                              ? 'Add your product to generate'
+                              : 'Add your garment to generate'}
                           </h3>
                           <p className="mt-2 text-sm text-gray-600">
-                            {useProductLanguage
-                              ? 'Upload your product photo first. Reference image is optional.'
-                              : 'Upload a garment and choose a subject to start generating.'}
+                            Upload your main product/garment first. Subject reference is optional.
                           </p>
                           <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
                             <button
@@ -1181,26 +1297,96 @@ export default function HomePage() {
           </>
         ) : currentTool === 'video-generator' ? (
           <>
-            <div className="p-4 flex justify-end">
-              <button
-                onClick={navigateTemplates}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-              >
-                Templates
-              </button>
+            <div className="p-4 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => quickVideoReferenceInputRef.current?.click()}
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                >
+                  Upload Reference
+                </button>
+                <button
+                  type="button"
+                  onClick={() => gallery.setShowLibrary(true)}
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                >
+                  Choose From Gallery
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={navigateTemplates}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                >
+                  Templates
+                </button>
+                <button
+                  onClick={() => gallery.setShowLibrary(!gallery.showLibrary)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
+                    gallery.showLibrary
+                      ? 'bg-indigo-50 text-indigo-600 border-indigo-200'
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <Images size={16} />
+                  Gallery
+                </button>
+              </div>
             </div>
-            <VideoGenerator
-              status={video.status}
-              videos={video.videos}
-              progress={video.progress}
-              errorMsg={video.errorMsg}
-              prompt={video.prompt}
-              onPromptChange={video.setPrompt}
-              onGenerate={handleVideoGenerate}
-              onReset={video.reset}
-              onRemoveVideo={video.removeVideo}
-              credits={credits}
+
+            <input
+              ref={quickVideoReferenceInputRef}
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) {
+                  void handleVideoReferenceUpload(file);
+                }
+                event.currentTarget.value = '';
+              }}
             />
+
+            {gallery.showLibrary ? (
+              <div className="flex-1 px-8 pb-24">
+                <Gallery
+                  uploads={gallery.uploads}
+                  generations={gallery.generations}
+                  videos={gallery.videos}
+                  folders={gallery.folders}
+                  onSelectUpload={(item) => {
+                    void handleVideoReferenceGallerySelect(item);
+                  }}
+                  onDelete={gallery.deleteItem}
+                  onDeleteVideo={gallery.deleteVideo}
+                  onCreateVideoFromImage={(item) =>
+                    handleOpenVideoTemplatePicker(item.url, item.id)
+                  }
+                  onUpload={gallery.directUpload}
+                  onCreateFolder={gallery.createFolder}
+                  onRenameFolder={gallery.renameFolder}
+                  onDeleteFolder={gallery.deleteFolder}
+                  onMoveItem={gallery.moveItem}
+                  selectionMode="single"
+                />
+              </div>
+            ) : (
+              <VideoGenerator
+                status={video.status}
+                videos={video.videos}
+                progress={video.progress}
+                errorMsg={video.errorMsg}
+                prompt={video.prompt}
+                onPromptChange={video.setPrompt}
+                onGenerate={handleVideoGenerate}
+                onReset={video.reset}
+                onRemoveVideo={video.removeVideo}
+                credits={credits}
+              />
+            )}
           </>
         ) : (
           <>

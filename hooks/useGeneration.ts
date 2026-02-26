@@ -68,7 +68,7 @@ export function useGeneration({ onGenerationSaved, onCreditsRefresh }: UseGenera
 
   const generateImage = useCallback(
     async (params: {
-      personImage: UploadedImage;
+      personImage?: UploadedImage | null;
       garments: UploadedImage[];
       prompt: string;
       mode: string;
@@ -83,27 +83,32 @@ export function useGeneration({ onGenerationSaved, onCreditsRefresh }: UseGenera
       setProgress(0);
 
       try {
+        const requestBody: Record<string, unknown> = {
+          garments: params.garments.map((g) => ({
+            base64: g.base64,
+            mimeType: g.mimeType,
+          })),
+          prompt: params.prompt,
+          mode: params.mode,
+          scene: params.scene,
+          visualStyle: params.visualStyle,
+          aspectRatio: params.aspectRatio,
+          resolution: params.resolution,
+          numGenerations: params.numGenerations,
+        };
+
+        if (params.personImage) {
+          requestBody.personImage = {
+            base64: params.personImage.base64,
+            mimeType: params.personImage.mimeType,
+          };
+        }
+
         // Submit generation request
         const res = await fetch('/api/generate/image', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            personImage: {
-              base64: params.personImage.base64,
-              mimeType: params.personImage.mimeType,
-            },
-            garments: params.garments.map((g) => ({
-              base64: g.base64,
-              mimeType: g.mimeType,
-            })),
-            prompt: params.prompt,
-            mode: params.mode,
-            scene: params.scene,
-            visualStyle: params.visualStyle,
-            aspectRatio: params.aspectRatio,
-            resolution: params.resolution,
-            numGenerations: params.numGenerations,
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         if (!res.ok) {

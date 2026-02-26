@@ -78,7 +78,6 @@ export async function POST(request: NextRequest) {
     } = body;
 
     const missing: string[] = [];
-    if (!personImage?.base64) missing.push('personImage');
     if (!garments?.length) missing.push('garments');
     if (!prompt) missing.push('prompt');
     if (missing.length > 0) {
@@ -141,10 +140,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Upload images to kie.ai
-    const personUrl = await uploadImageToKie(
-      personImage.base64,
-      personImage.mimeType,
-    );
+    let personUrl: string | null = null;
+    if (personImage?.base64) {
+      personUrl = await uploadImageToKie(
+        personImage.base64,
+        personImage.mimeType,
+      );
+    }
 
     let garmentUrls: string[] = [];
 
@@ -188,7 +190,7 @@ export async function POST(request: NextRequest) {
 
     // Create kie.ai task
     const imageInputs = [
-      { url: personUrl, type: 'person' as const },
+      ...(personUrl ? [{ url: personUrl, type: 'person' as const }] : []),
       ...garmentUrls.map((url) => ({
         url,
         type: 'garment' as const,

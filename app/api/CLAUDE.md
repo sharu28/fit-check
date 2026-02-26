@@ -31,7 +31,7 @@ Delete flow: look up item in Supabase (user-scoped) -> extract R2 keys from URLs
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `credits/` | Fetch user credits + plan from Polar |
+| GET | `credits/` | Fetch user credits + plan from Supabase `user_profiles` |
 | GET | `download/` | Proxy image download (CORS bypass) |
 | GET | `gallery/` | List user uploads + generations |
 | GET | `model-presets/` | Search shared model presets by keyword/category |

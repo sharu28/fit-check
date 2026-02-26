@@ -42,7 +42,7 @@ app/              # Next.js App Router pages and API routes
     storage/      # R2 upload/delete + watermark
     webhooks/     # Polar webhook handler
   app/            # Main app page (protected)
-  auth/           # Login/signup page + OAuth callback
+  auth/           # Login/signup/reset pages + OAuth callback
   pricing/        # Pricing page with checkout
 components/       # React UI components (all 'use client')
 hooks/            # Custom React hooks (auth, gallery, generation, credits, etc.)
@@ -60,6 +60,7 @@ middleware.ts     # Auth middleware (session refresh + route protection)
 - Resolution options are `2K` and `4K` (no `1K`).
 - Generation count supports up to 4 per request; free plan is capped to 1.
 - Sign-in supports both password and Google OAuth.
+- Password recovery is supported via Supabase recovery links and `/auth/reset`.
 - Transactional app emails are sent via Resend.
 - **Credits are tracked server-side** in `user_profiles.credits_remaining` with atomic deduction via Supabase RPC.
 - **Free-tier generation images get a "Fit Check" watermark** applied via sharp before R2 upload.
@@ -73,8 +74,8 @@ Credits are stored in `user_profiles.credits_remaining` (default 10 for free tie
 
 | Action | Cost |
 |--------|------|
-| Image generation (2K) | 10 credits |
-| Image generation (4K) | 16 credits |
+| Image generation (2K) | 1 credit |
+| Image generation (4K) | 2 credits |
 | Video generation (5s) | 30 credits |
 | Video generation (10s) | 60 credits |
 

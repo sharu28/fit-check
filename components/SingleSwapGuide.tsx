@@ -39,6 +39,7 @@ interface RequiredCardProps {
   description: string;
   previewUrl?: string;
   complete: boolean;
+  optional?: boolean;
   onAction: () => void;
   actionLabel: string;
   icon: ReactNode;
@@ -49,6 +50,7 @@ function RequiredCard({
   description,
   previewUrl,
   complete,
+  optional = false,
   onAction,
   actionLabel,
   icon,
@@ -69,10 +71,12 @@ function RequiredCard({
           className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
             complete
               ? 'bg-emerald-50 text-emerald-700'
-              : 'bg-amber-50 text-amber-700'
+              : optional
+                ? 'bg-gray-100 text-gray-600'
+                : 'bg-amber-50 text-amber-700'
           }`}
         >
-          {complete ? 'Ready' : 'Required'}
+          {complete ? 'Ready' : optional ? 'Optional' : 'Required'}
         </span>
       </div>
 
@@ -111,7 +115,7 @@ export function SingleSwapGuide({
   onAddGarment,
   onAddSubject,
 }: SingleSwapGuideProps) {
-  const readyToGenerate = hasGarment && hasSubject;
+  const readyToGenerate = hasGarment;
   const garmentInputRef = useRef<HTMLInputElement | null>(null);
   const subjectInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -122,15 +126,15 @@ export function SingleSwapGuide({
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
             Single Swap Workflow
           </p>
-          <h3 className="mt-2 text-2xl font-semibold text-gray-900">Add required assets to generate</h3>
+          <h3 className="mt-2 text-2xl font-semibold text-gray-900">Add your main asset to generate</h3>
           <p className="mt-2 text-sm text-gray-600">
-            Upload one garment, choose one subject, then generate your first result.
+            Upload one garment first. Subject reference is optional.
           </p>
         </header>
 
         <ol className="mt-5 grid grid-cols-1 gap-2 rounded-xl border border-gray-200 bg-white p-3 sm:grid-cols-3">
           <StepItem label="1. Upload Garment" done={hasGarment} />
-          <StepItem label="2. Choose Subject" done={hasSubject} />
+          <StepItem label="2. Add Subject (Optional)" done={hasSubject} />
           <StepItem label="3. Generate" done={readyToGenerate} />
         </ol>
 
@@ -152,9 +156,10 @@ export function SingleSwapGuide({
           />
           <RequiredCard
             title="Subject"
-            description="Select the model / person"
+            description="Select the model / person (optional)"
             previewUrl={subjectPreviewUrl}
             complete={hasSubject}
+            optional
             onAction={() => {
               if (onUploadSubject) {
                 subjectInputRef.current?.click();
@@ -205,7 +210,7 @@ export function SingleSwapGuide({
         <p className="mt-4 text-center text-sm font-medium text-gray-600">
           {readyToGenerate
             ? 'Ready to generate. Use the Generate button below.'
-            : 'Generate unlocks after both required inputs are added.'}
+            : 'Generate unlocks after garment input is added.'}
         </p>
       </div>
     </div>

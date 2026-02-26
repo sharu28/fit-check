@@ -43,6 +43,6 @@ Server-side utilities and API clients. All files here run on the server except `
 - `SCENE_PRESETS` / `STYLE_PRESETS` — Generation option lists
 - `ASPECT_RATIOS` / `RESOLUTIONS` — Output settings
 - `PLAN_CREDITS` — Monthly credit allocation per plan (`free: 10`, `pro: 100`, `premium: 500`)
-- `CREDIT_COSTS` — Per-action credit pricing
+- `CREDIT_COSTS` — Per-action credit pricing (`image_2k: 1`, `image_4k: 2`, `video_5s: 30`, `video_10s: 60`)
 - `KIE_MODELS` — AI model identifiers
 - `MAX_GARMENTS` (4), `MAX_FILE_SIZE_MB` (20), `DEFAULT_PROMPT`

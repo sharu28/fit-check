@@ -20,7 +20,7 @@ export function SubjectSelector({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
-          <User size={14} /> Subject Reference
+          <User size={14} /> Subject Reference (Optional)
         </div>
         {personImage && onSaveUpload && (
           <button

@@ -35,11 +35,13 @@
 - [x] Multi-generation requests are submitted in parallel on backend
 - [x] Result loading UI now renders one placeholder card per selected generation count
 - [x] Added aesthetic glow-style loading cards (no text)
+- [x] Added `Create Video` action on generated image cards with video-template picker modal
 
 ### Auth and Sessions
 - [x] Long-lived Supabase session cookie options
 - [x] Browser Supabase singleton for stable sessions
 - [x] `/auth` auto-redirect to `/app` when already signed in
+- [x] Password reset flow via Supabase recovery links (`/auth/callback` -> `/auth/reset`)
 
 ### Credits and Billing
 - [x] Server-side credit helpers + enforcement for image/video generation
