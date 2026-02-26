@@ -1,11 +1,20 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { OnboardingQuickStartFeed } from '@/components/OnboardingQuickStartFeed';
 
+const DEMO_PRIMARY_PREVIEW = '/onboarding/industries/jewelry.webp';
+const DEMO_SECONDARY_PREVIEW = '/onboarding/industries/garments.webp';
+
 export default function OnboardingQuickStartPreviewPage() {
-  const [hasPrimaryInput, setHasPrimaryInput] = useState(false);
-  const [hasSecondaryInput, setHasSecondaryInput] = useState(false);
+  const searchParams = useSearchParams();
+  const [hasPrimaryInput, setHasPrimaryInput] = useState(
+    searchParams.get('primary') === '1',
+  );
+  const [hasSecondaryInput, setHasSecondaryInput] = useState(
+    searchParams.get('secondary') === '1',
+  );
   const [hidden, setHidden] = useState(false);
 
   return (
@@ -28,6 +37,8 @@ export default function OnboardingQuickStartPreviewPage() {
             goal="product-ads"
             hasPrimaryInput={hasPrimaryInput}
             hasSecondaryInput={hasSecondaryInput}
+            primaryPreviewUrl={hasPrimaryInput ? DEMO_PRIMARY_PREVIEW : undefined}
+            secondaryPreviewUrl={hasSecondaryInput ? DEMO_SECONDARY_PREVIEW : undefined}
             onAddPrimaryInput={() => setHasPrimaryInput(true)}
             onAddSecondaryInput={() => setHasSecondaryInput(true)}
             onOpenTemplates={() => {}}

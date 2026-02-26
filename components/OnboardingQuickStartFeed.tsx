@@ -19,6 +19,8 @@ interface OnboardingQuickStartFeedProps {
   goal: OnboardingGoal;
   hasPrimaryInput: boolean;
   hasSecondaryInput: boolean;
+  primaryPreviewUrl?: string;
+  secondaryPreviewUrl?: string;
   onAddPrimaryInput: () => void;
   onAddSecondaryInput: () => void;
   onOpenTemplates: () => void;
@@ -92,6 +94,8 @@ export function OnboardingQuickStartFeed({
   goal,
   hasPrimaryInput,
   hasSecondaryInput,
+  primaryPreviewUrl,
+  secondaryPreviewUrl,
   onAddPrimaryInput,
   onAddSecondaryInput,
   onOpenTemplates,
@@ -150,12 +154,35 @@ export function OnboardingQuickStartFeed({
                 onClick={onAddPrimaryInput}
                 className={QUICK_START_UI.dropzone}
               >
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 transition group-hover:bg-indigo-100">
-                  <Upload size={20} />
-                </span>
-                <p className="mt-4 text-lg font-semibold text-gray-900">
-                  {hasPrimaryInput ? 'Product photo ready' : 'Click to upload product photo'}
-                </p>
+                {hasPrimaryInput && primaryPreviewUrl ? (
+                  <div className="relative h-full w-full overflow-hidden rounded-[18px] border border-indigo-100">
+                    <img
+                      src={primaryPreviewUrl}
+                      alt={`${primaryStep} preview`}
+                      className="h-full w-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/25 to-black/10" />
+                    <div className="absolute inset-x-0 bottom-0 p-4 text-left">
+                      <p className="text-base font-semibold text-white md:text-lg">
+                        Product photo ready
+                      </p>
+                      <p className="mt-1 text-xs font-medium text-white/80">
+                        Tap to replace
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 transition group-hover:bg-indigo-100">
+                      <Upload size={20} />
+                    </span>
+                    <p className="mt-4 text-lg font-semibold text-gray-900">
+                      {hasPrimaryInput
+                        ? 'Product photo ready'
+                        : 'Click to upload product photo'}
+                    </p>
+                  </>
+                )}
               </button>
 
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -183,6 +210,15 @@ export function OnboardingQuickStartFeed({
                 )}
               </div>
               <h4 className="mt-2 text-base font-semibold text-gray-900">{secondaryStep}</h4>
+              {hasSecondaryInput && secondaryPreviewUrl && (
+                <div className="mt-3 overflow-hidden rounded-xl border border-gray-200 bg-white">
+                  <img
+                    src={secondaryPreviewUrl}
+                    alt={`${secondaryStep} preview`}
+                    className="h-24 w-full object-cover"
+                  />
+                </div>
+              )}
               <button
                 type="button"
                 onClick={onAddSecondaryInput}

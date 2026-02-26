@@ -1221,6 +1221,8 @@ export default function HomePage() {
                         goal={onboardingSelection.goal}
                         hasPrimaryInput={hasGarment}
                         hasSecondaryInput={hasSubject}
+                        primaryPreviewUrl={garments[0]?.previewUrl}
+                        secondaryPreviewUrl={personImage?.previewUrl}
                         onAddPrimaryInput={handleQuickStartPrimaryAction}
                         onAddSecondaryInput={handleQuickStartSecondaryAction}
                         onOpenTemplates={navigateTemplates}
