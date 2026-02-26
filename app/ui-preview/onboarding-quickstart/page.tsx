@@ -1,20 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { OnboardingQuickStartFeed } from '@/components/OnboardingQuickStartFeed';
 
 const DEMO_PRIMARY_PREVIEW = '/onboarding/industries/jewelry.webp';
 const DEMO_SECONDARY_PREVIEW = '/onboarding/industries/garments.webp';
 
 export default function OnboardingQuickStartPreviewPage() {
-  const searchParams = useSearchParams();
-  const [hasPrimaryInput, setHasPrimaryInput] = useState(
-    searchParams.get('primary') === '1',
-  );
-  const [hasSecondaryInput, setHasSecondaryInput] = useState(
-    searchParams.get('secondary') === '1',
-  );
+  const [hasPrimaryInput, setHasPrimaryInput] = useState(false);
+  const [hasSecondaryInput, setHasSecondaryInput] = useState(false);
   const [hidden, setHidden] = useState(false);
 
   return (
