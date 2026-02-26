@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import {
   Clapperboard,
   Download,
@@ -52,6 +52,45 @@ export function ResultDisplay({
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>(
     'idle',
   );
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [activeTouchCardId, setActiveTouchCardId] = useState<string | null>(
+    null,
+  );
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mediaQuery = window.matchMedia('(hover: none), (pointer: coarse)');
+    const updateTouchMode = () => setIsTouchDevice(mediaQuery.matches);
+
+    updateTouchMode();
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', updateTouchMode);
+      return () => mediaQuery.removeEventListener('change', updateTouchMode);
+    }
+
+    mediaQuery.addListener(updateTouchMode);
+    return () => mediaQuery.removeListener(updateTouchMode);
+  }, []);
+
+  useEffect(() => {
+    if (!isTouchDevice || !activeTouchCardId) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const activeCard = cardRefs.current[activeTouchCardId];
+      if (!activeCard) {
+        setActiveTouchCardId(null);
+        return;
+      }
+
+      if (!activeCard.contains(event.target as Node)) {
+        setActiveTouchCardId(null);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [activeTouchCardId, isTouchDevice]);
 
   const downloadImage = (url: string) => {
     const link = document.createElement('a');
@@ -213,11 +252,23 @@ export function ResultDisplay({
         {/* Unsaved latest result (before auto-save completes) */}
         {unsavedResult && resultImage && (
           <ImageCard
+            cardId="unsaved-result"
             url={resultImage}
             isNew
             onDownload={() => downloadImage(resultImage)}
             onShare={() => setShareImage(resultImage)}
             onCreateVideo={onCreateVideo ? () => onCreateVideo(resultImage) : undefined}
+            isTouchDevice={isTouchDevice}
+            isTouchOpen={activeTouchCardId === 'unsaved-result'}
+            onTouchToggle={() =>
+              setActiveTouchCardId((prev) =>
+                prev === 'unsaved-result' ? null : 'unsaved-result',
+              )
+            }
+            onActionComplete={() => setActiveTouchCardId(null)}
+            onRegisterRef={(node) => {
+              cardRefs.current['unsaved-result'] = node;
+            }}
           />
         )}
 
@@ -225,6 +276,7 @@ export function ResultDisplay({
         {generations.map((item) => (
           <ImageCard
             key={item.id}
+            cardId={item.id}
             url={item.url}
             fullUrl={item.url}
             onDownload={() => downloadImage(item.url)}
@@ -233,6 +285,15 @@ export function ResultDisplay({
             onRemoveBg={onRemoveBg ? () => onRemoveBg(item.url, item.id) : undefined}
             onCreateVideo={onCreateVideo ? () => onCreateVideo(item.url, item.id) : undefined}
             isRemovingBg={removingBgId === item.id}
+            isTouchDevice={isTouchDevice}
+            isTouchOpen={activeTouchCardId === item.id}
+            onTouchToggle={() =>
+              setActiveTouchCardId((prev) => (prev === item.id ? null : item.id))
+            }
+            onActionComplete={() => setActiveTouchCardId(null)}
+            onRegisterRef={(node) => {
+              cardRefs.current[item.id] = node;
+            }}
           />
         ))}
       </div>
@@ -349,6 +410,7 @@ export function ResultDisplay({
 }
 
 function ImageCard({
+  cardId,
   url,
   fullUrl,
   isNew,
@@ -358,7 +420,13 @@ function ImageCard({
   onRemoveBg,
   onCreateVideo,
   isRemovingBg,
+  isTouchDevice,
+  isTouchOpen,
+  onTouchToggle,
+  onActionComplete,
+  onRegisterRef,
 }: {
+  cardId: string;
   url: string;
   fullUrl?: string;
   isNew?: boolean;
@@ -368,12 +436,43 @@ function ImageCard({
   onRemoveBg?: () => void;
   onCreateVideo?: () => void;
   isRemovingBg?: boolean;
+  isTouchDevice: boolean;
+  isTouchOpen: boolean;
+  onTouchToggle: () => void;
+  onActionComplete: () => void;
+  onRegisterRef: (node: HTMLDivElement | null) => void;
 }) {
+  const overlayVisibilityClass = isTouchDevice
+    ? isTouchOpen
+      ? 'opacity-100 pointer-events-auto'
+      : 'opacity-0 pointer-events-none'
+    : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto';
+
+  const handleCardTap = () => {
+    if (!isTouchDevice || isRemovingBg) return;
+    onTouchToggle();
+  };
+
+  const runAction = (action: () => void) => (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    action();
+    if (isTouchDevice) {
+      onActionComplete();
+    }
+  };
+
+  const actionChipBase =
+    'inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-gray-800 shadow-sm transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500';
+
   return (
     <div
+      ref={onRegisterRef}
+      data-touch-card-id={cardId}
+      data-touch-open={isTouchOpen ? '1' : '0'}
+      onClick={handleCardTap}
       className={`group relative aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 border ${
         isNew ? 'border-indigo-300 ring-2 ring-indigo-200' : 'border-gray-200'
-      }`}
+      } ${isTouchDevice ? 'cursor-pointer' : ''}`}
     >
       <img
         src={url}
@@ -381,54 +480,74 @@ function ImageCard({
         className="w-full h-full object-cover"
         loading="lazy"
       />
+      {isTouchDevice && !isTouchOpen && (
+        <div className="absolute bottom-2 left-1/2 z-20 -translate-x-1/2 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-semibold text-white/90 backdrop-blur-sm">
+          Tap for actions
+        </div>
+      )}
       {isRemovingBg && (
-        <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10">
+        <div className="absolute inset-0 z-30 bg-white/70 flex items-center justify-center">
           <Loader2 className="animate-spin text-indigo-600" size={24} />
         </div>
       )}
-      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-        <button
-          onClick={onShare}
-          className="p-2 bg-white text-gray-900 rounded-full hover:bg-gray-50 transition-colors shadow-sm"
-          title="Share"
-        >
-          <Share2 size={18} />
-        </button>
-        <button
-          onClick={onDownload}
-          className="p-2 bg-white text-gray-900 rounded-full hover:bg-gray-50 transition-colors shadow-sm"
-          title="Download"
-        >
-          <Download size={18} />
-        </button>
-        {onCreateVideo && (
+      <div
+        className={`absolute inset-0 z-20 bg-black/45 transition-opacity ${overlayVisibilityClass} flex items-center justify-center p-2`}
+      >
+        <div className="flex max-w-full flex-wrap items-center justify-center gap-2">
           <button
-            onClick={onCreateVideo}
-            className="p-2 bg-white text-gray-900 rounded-full hover:bg-gray-50 transition-colors shadow-sm"
-            title="Create Video"
+            onClick={runAction(onShare)}
+            aria-label="Share"
+            className={actionChipBase}
+            title="Share"
           >
-            <Clapperboard size={18} />
+            <Share2 size={14} />
+            <span>Share</span>
           </button>
-        )}
-        {onRemoveBg && (
           <button
-            onClick={onRemoveBg}
-            disabled={isRemovingBg}
-            className="p-2 bg-white text-indigo-600 rounded-full hover:bg-indigo-50 transition-colors shadow-sm disabled:opacity-50"
-            title="Remove Background"
+            onClick={runAction(onDownload)}
+            aria-label="Download"
+            className={actionChipBase}
+            title="Download"
           >
-            <Eraser size={18} />
+            <Download size={14} />
+            <span>Download</span>
           </button>
-        )}
-        {onDelete && (
-          <button
-            onClick={onDelete}
-            className="p-2 bg-white text-red-500 rounded-full hover:bg-red-50 transition-colors shadow-sm"
-            title="Delete"
-          >
-            <Trash2 size={18} />
-          </button>
-        )}
+          {onCreateVideo && (
+            <button
+              onClick={runAction(onCreateVideo)}
+              aria-label="Create Video"
+              className={actionChipBase}
+              title="Create Video"
+            >
+              <Clapperboard size={14} />
+              <span>Create Video</span>
+            </button>
+          )}
+          {onRemoveBg && (
+            <button
+              onClick={runAction(onRemoveBg)}
+              disabled={isRemovingBg}
+              aria-label="Remove Background"
+              className={`${actionChipBase} text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60`}
+              title="Remove Background"
+            >
+              <Eraser size={14} />
+              <span>Remove Background</span>
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={runAction(onDelete)}
+              disabled={isRemovingBg}
+              aria-label="Delete"
+              className={`${actionChipBase} border-red-100 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60`}
+              title="Delete"
+            >
+              <Trash2 size={14} />
+              <span>Delete</span>
+            </button>
+          )}
+        </div>
       </div>
       {isNew && (
         <div className="absolute top-2 left-2 px-2 py-0.5 bg-indigo-600 text-white text-xs font-bold rounded-full">

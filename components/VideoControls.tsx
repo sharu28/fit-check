@@ -1,6 +1,5 @@
 'use client';
 
-import { ImageUploader } from './ImageUploader';
 import {
   Volume2,
   VolumeX,
@@ -8,7 +7,6 @@ import {
   RectangleHorizontal,
   RectangleVertical,
 } from 'lucide-react';
-import type { UploadedImage } from '@/types';
 
 function getRatioIcon(r: string) {
   switch (r) {
@@ -22,8 +20,6 @@ function getRatioIcon(r: string) {
 }
 
 interface VideoControlsProps {
-  referenceImage: UploadedImage | null;
-  onReferenceImageChange: (img: UploadedImage | null) => void;
   aspectRatio: string;
   onAspectRatioChange: (r: string) => void;
   duration: 5 | 10;
@@ -35,8 +31,6 @@ interface VideoControlsProps {
 const ASPECT_RATIOS = ['1:1', '16:9', '9:16'];
 
 export function VideoControls({
-  referenceImage,
-  onReferenceImageChange,
   aspectRatio,
   onAspectRatioChange,
   duration,
@@ -46,16 +40,6 @@ export function VideoControls({
 }: VideoControlsProps) {
   return (
     <div className="space-y-6">
-      <div className="space-y-3">
-        <label className="block text-xs font-bold tracking-wider text-gray-500 uppercase">
-          Reference Image (optional)
-        </label>
-        <ImageUploader
-          image={referenceImage}
-          onImageChange={onReferenceImageChange}
-        />
-      </div>
-
       <div className="space-y-3">
         <label className="block text-xs font-bold tracking-wider text-gray-500 uppercase">
           Aspect Ratio

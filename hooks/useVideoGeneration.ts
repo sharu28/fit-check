@@ -1,9 +1,18 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import type { UploadedImage, GalleryItem } from '@/types';
+import {
+  composeVideoReferenceInput,
+  getEnvironmentPromptHint,
+} from '@/lib/video-composite';
+import type {
+  UploadedImage,
+  GalleryItem,
+  VideoEnvironmentSelection,
+} from '@/types';
 
 export type VideoStatus = 'idle' | 'generating' | 'success' | 'error';
+const MAX_VIDEO_PRODUCTS = 4;
 
 export interface VideoItem {
   id: string;
@@ -17,7 +26,9 @@ interface UseVideoGenerationOptions {
 }
 
 export function useVideoGeneration({ onVideoSaved, onCreditsRefresh }: UseVideoGenerationOptions = {}) {
-  const [referenceImage, setReferenceImage] = useState<UploadedImage | null>(null);
+  const [productImages, setProductImages] = useState<UploadedImage[]>([]);
+  const [subjectImage, setSubjectImage] = useState<UploadedImage | null>(null);
+  const [environment, setEnvironment] = useState<VideoEnvironmentSelection | null>(null);
   const [prompt, setPrompt] = useState('');
   const [aspectRatio, setAspectRatio] = useState('16:9');
   const [duration, setDuration] = useState<5 | 10>(5);
@@ -36,21 +47,91 @@ export function useVideoGeneration({ onVideoSaved, onCreditsRefresh }: UseVideoG
     }
   }, []);
 
+  const addOrReplaceProduct = useCallback((image: UploadedImage, slotIndex?: number) => {
+    setProductImages((prev) => {
+      const next = prev.slice(0, MAX_VIDEO_PRODUCTS);
+      if (typeof slotIndex === 'number' && slotIndex >= 0 && slotIndex < MAX_VIDEO_PRODUCTS) {
+        if (slotIndex < next.length) {
+          next[slotIndex] = image;
+          return next;
+        }
+
+        next.push(image);
+        return next.slice(0, MAX_VIDEO_PRODUCTS);
+      }
+
+      if (next.length < MAX_VIDEO_PRODUCTS) {
+        return [...next, image];
+      }
+
+      const fallback = next.slice();
+      fallback[MAX_VIDEO_PRODUCTS - 1] = image;
+      return fallback;
+    });
+  }, []);
+
+  const removeProduct = useCallback((slotIndex: number) => {
+    setProductImages((prev) => prev.filter((_, index) => index !== slotIndex));
+  }, []);
+
+  // Compatibility alias for legacy call sites while video UI migration settles.
+  const referenceImage = productImages[0] ?? null;
+  const setReferenceImage = useCallback((image: UploadedImage | null) => {
+    setProductImages((prev) => {
+      if (!image) {
+        return prev.filter((_, index) => index !== 0);
+      }
+
+      if (prev.length === 0) {
+        return [image];
+      }
+
+      const next = [...prev];
+      next[0] = image;
+      return next.slice(0, MAX_VIDEO_PRODUCTS);
+    });
+  }, []);
+
+  const resolveFallbackReferenceImage = useCallback(() => {
+    if (productImages.length > 0) return productImages[0];
+    if (subjectImage) return subjectImage;
+    if (environment?.type === 'image') return environment.image;
+    return null;
+  }, [environment, productImages, subjectImage]);
+
   const generate = useCallback(async (promptOverride?: string) => {
-    const effectivePrompt = (promptOverride ?? prompt).trim();
-    if (!effectivePrompt) return 'Please enter a prompt for the video.';
+    const promptSource = (promptOverride ?? prompt).trim();
+    if (!promptSource) return 'Please enter a prompt for the video.';
+
+    const environmentHint = getEnvironmentPromptHint(environment);
+    const effectivePrompt = environmentHint
+      ? `${promptSource} ${environmentHint}`.trim()
+      : promptSource;
 
     setStatus('generating');
     setErrorMsg(null);
     setProgress(0);
 
     try {
+      let composedImage: UploadedImage | null = null;
+      try {
+        composedImage = await composeVideoReferenceInput({
+          productImages,
+          subjectImage,
+          environment,
+          aspectRatio,
+        });
+      } catch (compositionError) {
+        console.warn('Video reference composition failed; using fallback image.', compositionError);
+        composedImage = resolveFallbackReferenceImage();
+      }
+
       const res = await fetch('/api/generate/video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          imageInput: referenceImage
-            ? { base64: referenceImage.base64, mimeType: referenceImage.mimeType }
+          imageInput: composedImage
+            ? { base64: composedImage.base64, mimeType: composedImage.mimeType }
             : undefined,
           prompt: effectivePrompt,
           aspectRatio,
@@ -134,7 +215,19 @@ export function useVideoGeneration({ onVideoSaved, onCreditsRefresh }: UseVideoG
     }
 
     return null;
-  }, [prompt, referenceImage, aspectRatio, duration, sound, stopPolling, onCreditsRefresh, onVideoSaved]);
+  }, [
+    prompt,
+    environment,
+    aspectRatio,
+    duration,
+    sound,
+    stopPolling,
+    onCreditsRefresh,
+    onVideoSaved,
+    productImages,
+    resolveFallbackReferenceImage,
+    subjectImage,
+  ]);
 
   const removeVideo = useCallback((id: string) => {
     setVideos((prev) => prev.filter((v) => v.id !== id));
@@ -150,6 +243,9 @@ export function useVideoGeneration({ onVideoSaved, onCreditsRefresh }: UseVideoG
 
   return {
     referenceImage, setReferenceImage,
+    productImages, addOrReplaceProduct, removeProduct,
+    subjectImage, setSubjectImage,
+    environment, setEnvironment,
     prompt, setPrompt,
     aspectRatio, setAspectRatio,
     duration, setDuration,

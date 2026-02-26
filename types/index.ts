@@ -5,6 +5,10 @@ export interface UploadedImage {
   mimeType: string;
 }
 
+export type VideoEnvironmentSelection =
+  | { type: 'preset'; presetId: string }
+  | { type: 'image'; image: UploadedImage };
+
 export enum AppStatus {
   IDLE = 'IDLE',
   GENERATING = 'GENERATING',

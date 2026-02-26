@@ -10,6 +10,7 @@ import { useCredits } from '@/hooks/useCredits';
 import { Header } from '@/components/Header';
 import { SubjectSelector } from '@/components/SubjectSelector';
 import { SubjectModal } from '@/components/SubjectModal';
+import { EnvironmentPickerModal } from '@/components/EnvironmentPickerModal';
 import { GarmentGrid } from '@/components/GarmentGrid';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { PromptBar } from '@/components/PromptBar';
@@ -40,7 +41,14 @@ import {
 } from '@/components/OnboardingQuestionnaire';
 import { DEFAULT_PROMPT, MAX_GARMENTS, MAX_FILE_SIZE_BYTES } from '@/lib/constants';
 import { fileToBase64, readFileToDataUrl } from '@/lib/utils';
-import { AppStatus, type UploadedImage, type GenerationMode, type ToolMode, type GalleryItem } from '@/types';
+import {
+  AppStatus,
+  type UploadedImage,
+  type GenerationMode,
+  type ToolMode,
+  type GalleryItem,
+  type VideoEnvironmentSelection,
+} from '@/types';
 import { PostHogIdentify } from '@/components/PostHogIdentify';
 import { Loader2, Images } from 'lucide-react';
 
@@ -221,8 +229,9 @@ export default function HomePage() {
     setGenerationCount((prev) => Math.min(Math.max(prev, 1), maxGenerations));
   }, [maxGenerations]);
 
-  // Subject modal
-  const [showSubjectModal, setShowSubjectModal] = useState(false);
+  // Subject / Environment modals
+  const [subjectModalTarget, setSubjectModalTarget] = useState<'style' | 'video' | null>(null);
+  const [showEnvironmentModal, setShowEnvironmentModal] = useState(false);
   const [activeSection, setActiveSection] = useState<'home' | 'templates' | 'assistant' | 'guide' | 'academy'>('templates');
   const [isMenuOpen, setIsMenuOpen] = useState(true);
   const [showOnboardingWizard, setShowOnboardingWizard] = useState(false);
@@ -236,10 +245,11 @@ export default function HomePage() {
   const [guideFocusTarget, setGuideFocusTarget] = useState<'garment' | 'subject' | null>(null);
   const [showImageToVideoPrompt, setShowImageToVideoPrompt] = useState(false);
   const [imageToVideoPrompt, setImageToVideoPrompt] = useState('');
+  const [pendingVideoProductSlot, setPendingVideoProductSlot] = useState<number | null>(null);
   const subjectSectionRef = useRef<HTMLDivElement | null>(null);
   const garmentSectionRef = useRef<HTMLDivElement | null>(null);
   const quickGarmentInputRef = useRef<HTMLInputElement | null>(null);
-  const quickVideoReferenceInputRef = useRef<HTMLInputElement | null>(null);
+  const quickVideoProductInputRef = useRef<HTMLInputElement | null>(null);
   const onboardingStorageKey = user?.id ? `fitcheck:onboarding:intake:v1:${user.id}` : null;
 
   useEffect(() => {
@@ -352,7 +362,7 @@ export default function HomePage() {
     async (item: GalleryItem) => {
       const uploadedImage = await gallery.selectGalleryItem(item);
       setPersonImage(uploadedImage);
-      setShowSubjectModal(false);
+      setSubjectModalTarget(null);
     },
     [gallery],
   );
@@ -388,7 +398,7 @@ export default function HomePage() {
 
     if (target === 'subject') {
       subjectSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setShowSubjectModal(true);
+      setSubjectModalTarget('style');
     } else {
       garmentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
@@ -599,26 +609,76 @@ export default function HomePage() {
     setPersonImage(uploaded);
   }, [buildUploadedImage]);
 
-  const handleVideoReferenceUpload = useCallback(async (file: File) => {
+  const openVideoProductUpload = useCallback((slotIndex?: number) => {
+    if (typeof slotIndex !== 'number' && video.productImages.length >= 4) {
+      addToast('Max 4 products reached. Replace an existing product slot.', 'info');
+      return;
+    }
+
+    setPendingVideoProductSlot(typeof slotIndex === 'number' ? slotIndex : null);
+    quickVideoProductInputRef.current?.click();
+  }, [video.productImages.length, addToast]);
+
+  const handleVideoProductUpload = useCallback(async (file: File, slotIndex?: number | null) => {
     const uploaded = await buildUploadedImage(file);
     if (!uploaded) return;
-    video.setReferenceImage(uploaded);
-    addToast('Video reference image ready.', 'success');
+
+    if (typeof slotIndex !== 'number' && video.productImages.length >= 4) {
+      addToast('Max 4 products reached. Replace an existing product slot.', 'info');
+      return;
+    }
+
+    video.addOrReplaceProduct(uploaded, typeof slotIndex === 'number' ? slotIndex : undefined);
+    addToast('Product photo added for video generation.', 'success');
   }, [buildUploadedImage, video, addToast]);
 
-  const handleVideoReferenceGallerySelect = useCallback(
-    async (item: GalleryItem) => {
+  const handleVideoProductGallerySelect = useCallback(
+    async (item: GalleryItem, slotIndex?: number | null) => {
       try {
+        if (typeof slotIndex !== 'number' && video.productImages.length >= 4) {
+          addToast('Max 4 products reached. Replace an existing product slot.', 'info');
+          return;
+        }
+
         const uploadedImage = await gallery.selectGalleryItem(item);
-        video.setReferenceImage(uploadedImage);
+        video.addOrReplaceProduct(uploadedImage, typeof slotIndex === 'number' ? slotIndex : undefined);
         gallery.setShowLibrary(false);
-        addToast('Reference image selected for video generation.', 'success');
+        setPendingVideoProductSlot(null);
+        addToast('Product image selected for video generation.', 'success');
       } catch {
         addToast('Failed to load image from gallery.', 'error');
       }
     },
     [gallery, video, addToast],
   );
+
+  const handleVideoSubjectSelect = useCallback((image: UploadedImage) => {
+    video.setSubjectImage(image);
+    setSubjectModalTarget(null);
+    addToast('Subject reference added.', 'success');
+  }, [video, addToast]);
+
+  const handleVideoSubjectGallerySelect = useCallback(async (item: GalleryItem) => {
+    try {
+      const uploadedImage = await gallery.selectGalleryItem(item);
+      video.setSubjectImage(uploadedImage);
+      setSubjectModalTarget(null);
+      addToast('Subject selected from gallery.', 'success');
+    } catch {
+      addToast('Failed to load image from gallery.', 'error');
+    }
+  }, [gallery, video, addToast]);
+
+  const handleVideoEnvironmentSelect = useCallback((selection: VideoEnvironmentSelection) => {
+    video.setEnvironment(selection);
+    setShowEnvironmentModal(false);
+    addToast(
+      selection.type === 'preset'
+        ? 'Environment preset selected.'
+        : 'Environment image selected.',
+      'success',
+    );
+  }, [video, addToast]);
 
   const handleQuickStartPrimaryAction = useCallback(() => {
     setActiveSection('home');
@@ -627,7 +687,7 @@ export default function HomePage() {
 
   const handleQuickStartSecondaryAction = useCallback(() => {
     setActiveSection('home');
-    setShowSubjectModal(true);
+    setSubjectModalTarget('style');
   }, []);
 
   const pickTemplatePrompt = useCallback((template: TemplateOption) => {
@@ -1008,7 +1068,7 @@ export default function HomePage() {
             >
               <SubjectSelector
                 personImage={personImage}
-                onOpenModal={() => setShowSubjectModal(true)}
+                onOpenModal={() => setSubjectModalTarget('style')}
                 onSaveUpload={gallery.saveUpload}
                 savingId={gallery.savingId}
               />
@@ -1045,8 +1105,6 @@ export default function HomePage() {
         ) : currentTool === 'video-generator' ? (
           <div className="flex-1 px-6 py-4 overflow-y-auto custom-scrollbar">
             <VideoControls
-              referenceImage={video.referenceImage}
-              onReferenceImageChange={video.setReferenceImage}
               aspectRatio={video.aspectRatio}
               onAspectRatioChange={video.setAspectRatio}
               duration={video.duration}
@@ -1095,7 +1153,7 @@ export default function HomePage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowSubjectModal(true)}
+                    onClick={() => setSubjectModalTarget('style')}
                     className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
                   >
                     {secondaryInputActionLabel}
@@ -1311,25 +1369,42 @@ export default function HomePage() {
           </>
         ) : currentTool === 'video-generator' ? (
           <>
-            <div className="p-4 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 p-4">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => quickVideoReferenceInputRef.current?.click()}
+                  onClick={() => openVideoProductUpload()}
                   className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
                 >
-                  Upload Reference
+                  Add Product
                 </button>
                 <button
                   type="button"
-                  onClick={() => gallery.setShowLibrary(true)}
+                  onClick={() => {
+                    setPendingVideoProductSlot(null);
+                    gallery.setShowLibrary(true);
+                  }}
                   className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
                 >
                   Choose From Gallery
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setSubjectModalTarget('video')}
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                >
+                  Subject (optional)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowEnvironmentModal(true)}
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                >
+                  Environment (optional)
+                </button>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={navigateTemplates}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
@@ -1351,16 +1426,17 @@ export default function HomePage() {
             </div>
 
             <input
-              ref={quickVideoReferenceInputRef}
+              ref={quickVideoProductInputRef}
               type="file"
               accept="image/*"
               className="sr-only"
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (file) {
-                  void handleVideoReferenceUpload(file);
+                  void handleVideoProductUpload(file, pendingVideoProductSlot);
                 }
                 event.currentTarget.value = '';
+                setPendingVideoProductSlot(null);
               }}
             />
 
@@ -1372,7 +1448,7 @@ export default function HomePage() {
                   videos={gallery.videos}
                   folders={gallery.folders}
                   onSelectUpload={(item) => {
-                    void handleVideoReferenceGallerySelect(item);
+                    void handleVideoProductGallerySelect(item, pendingVideoProductSlot);
                   }}
                   onDelete={gallery.deleteItem}
                   onDeleteVideo={gallery.deleteVideo}
@@ -1399,6 +1475,19 @@ export default function HomePage() {
                 onReset={video.reset}
                 onRemoveVideo={video.removeVideo}
                 credits={credits}
+                productImages={video.productImages}
+                subjectImage={video.subjectImage}
+                environment={video.environment}
+                onAddProduct={openVideoProductUpload}
+                onChooseProductFromGallery={(slotIndex?: number) => {
+                  setPendingVideoProductSlot(typeof slotIndex === 'number' ? slotIndex : null);
+                  gallery.setShowLibrary(true);
+                }}
+                onRemoveProduct={video.removeProduct}
+                onOpenSubjectPicker={() => setSubjectModalTarget('video')}
+                onClearSubject={() => video.setSubjectImage(null)}
+                onOpenEnvironmentPicker={() => setShowEnvironmentModal(true)}
+                onClearEnvironment={() => video.setEnvironment(null)}
               />
             )}
           </>
@@ -1443,11 +1532,29 @@ export default function HomePage() {
 
       {/* Subject Selection Modal */}
       <SubjectModal
-        isOpen={showSubjectModal}
-        onClose={() => setShowSubjectModal(false)}
-        onSelectImage={setPersonImage}
+        isOpen={subjectModalTarget !== null}
+        onClose={() => setSubjectModalTarget(null)}
+        onSelectImage={(image) => {
+          if (subjectModalTarget === 'video') {
+            handleVideoSubjectSelect(image);
+            return;
+          }
+          setPersonImage(image);
+        }}
         galleryUploads={gallery.uploads}
-        onGallerySelect={handleSubjectGallerySelect}
+        onGallerySelect={(item) => {
+          if (subjectModalTarget === 'video') {
+            void handleVideoSubjectGallerySelect(item);
+            return;
+          }
+          void handleSubjectGallerySelect(item);
+        }}
+      />
+
+      <EnvironmentPickerModal
+        isOpen={showEnvironmentModal}
+        onClose={() => setShowEnvironmentModal(false)}
+        onSelect={handleVideoEnvironmentSelect}
       />
 
       {/* Toast Notifications */}
