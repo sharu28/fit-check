@@ -18,8 +18,8 @@ export const PLAN_CREDITS = {
 
 // Credit costs per generation type (configurable)
 export const CREDIT_COSTS = {
-  image_2k: 10,
-  image_4k: 16,
+  image_2k: 1,
+  image_4k: 1,
   video_5s: 30,
   video_10s: 60,
 } as const;
