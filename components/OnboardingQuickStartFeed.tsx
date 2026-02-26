@@ -4,7 +4,6 @@ import {
   ArrowRight,
   CheckCircle2,
   Circle,
-  Layers3,
   Upload,
   X,
 } from 'lucide-react';
@@ -64,29 +63,17 @@ function getExpectedOutputLabel(goal: OnboardingGoal) {
   }
 }
 
-function getGoalAsset(goal: OnboardingGoal) {
-  const basePath = `/onboarding/goals/${goal}`;
-  return [
-    `url(${basePath}.webp)`,
-    `url(${basePath}.jpg)`,
-    `url(${basePath}.jpeg)`,
-    `url(${basePath}.png)`,
-  ].join(', ');
-}
-
 const QUICK_START_UI = {
   shell:
-    'w-full h-full min-h-[430px] rounded-2xl border border-gray-200 bg-white p-5 md:p-7 shadow-sm',
+    'w-full h-full min-h-[560px] rounded-2xl border border-gray-200 bg-white p-5 md:p-7 shadow-sm',
   heroCard:
     'relative overflow-hidden rounded-3xl border border-indigo-100/80 bg-gradient-to-br from-[#f8fbff] via-white to-[#f8f6ff] p-5 md:p-6 shadow-[0_20px_45px_-28px_rgba(30,41,59,0.55)]',
   heroGlow:
     'pointer-events-none absolute -right-20 -top-20 h-52 w-52 rounded-full bg-indigo-200/40 blur-3xl',
   dropzone:
-    'group mt-5 flex min-h-[220px] w-full flex-col items-center justify-center rounded-2xl border border-dashed border-indigo-200 bg-white/75 px-5 text-center transition hover:border-indigo-400 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500',
+    'group mt-5 flex min-h-[300px] w-full flex-col items-center justify-center rounded-2xl border border-dashed border-indigo-200 bg-white/75 px-5 text-center transition hover:border-indigo-400 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 md:min-h-[420px]',
   secondaryCard:
-    'rounded-2xl border border-gray-200 bg-gray-50/70 p-4 shadow-sm',
-  outputCard:
-    'relative overflow-hidden rounded-2xl border border-gray-200 bg-gray-900 p-4 text-white',
+    'h-full rounded-2xl border border-gray-200 bg-gray-50/70 p-4 shadow-sm md:p-5',
 };
 
 export function OnboardingQuickStartFeed({
@@ -107,7 +94,7 @@ export function OnboardingQuickStartFeed({
 
   return (
     <div className={QUICK_START_UI.shell}>
-      <div className="mx-auto flex h-full w-full max-w-5xl flex-col">
+      <div className="flex h-full w-full flex-col">
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
@@ -116,6 +103,19 @@ export function OnboardingQuickStartFeed({
             <h3 className="mt-2 text-2xl font-semibold text-gray-900 md:text-3xl">
               {ONBOARDING_INDUSTRY_LABELS[industry]} x {ONBOARDING_GOAL_LABELS[goal]}
             </h3>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+              <p className="font-medium text-gray-700">You&apos;ll get:</p>
+              <span className="rounded-full border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-indigo-700">
+                {outputLabel}
+              </span>
+              <button
+                type="button"
+                onClick={onOpenTemplates}
+                className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+              >
+                Explore templates <ArrowRight size={12} />
+              </button>
+            </div>
           </div>
           <button
             type="button"
@@ -127,10 +127,10 @@ export function OnboardingQuickStartFeed({
           </button>
         </header>
 
-        <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-12">
-          <article className={`lg:col-span-8 ${QUICK_START_UI.heroCard}`}>
+        <div className="mt-6 grid flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]">
+          <article className={QUICK_START_UI.heroCard}>
             <div className={QUICK_START_UI.heroGlow} aria-hidden="true" />
-            <div className="relative z-10">
+            <div className="relative z-10 flex h-full flex-col">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">
@@ -197,8 +197,8 @@ export function OnboardingQuickStartFeed({
             </div>
           </article>
 
-          <div className="grid grid-cols-1 gap-4 lg:col-span-4">
-            <article className={QUICK_START_UI.secondaryCard}>
+          <div className="grid grid-cols-1">
+            <article className={`${QUICK_START_UI.secondaryCard} flex flex-col`}>
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
                   Step 2 (Optional)
@@ -210,6 +210,9 @@ export function OnboardingQuickStartFeed({
                 )}
               </div>
               <h4 className="mt-2 text-base font-semibold text-gray-900">{secondaryStep}</h4>
+              <p className="mt-2 text-sm text-gray-600">
+                Add a style/scene reference to steer composition. Skip this for a fast first output.
+              </p>
               {hasSecondaryInput && secondaryPreviewUrl && (
                 <div className="mt-3 overflow-hidden rounded-xl border border-gray-200 bg-white">
                   <img
@@ -219,6 +222,11 @@ export function OnboardingQuickStartFeed({
                   />
                 </div>
               )}
+              {!hasSecondaryInput && (
+                <div className="mt-3 flex h-24 items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">
+                  Optional reference
+                </div>
+              )}
               <button
                 type="button"
                 onClick={onAddSecondaryInput}
@@ -226,34 +234,6 @@ export function OnboardingQuickStartFeed({
               >
                 {hasSecondaryInput ? 'Change reference' : 'Add reference'} <ArrowRight size={14} />
               </button>
-            </article>
-
-            <article className={QUICK_START_UI.outputCard}>
-              <div
-                className="absolute inset-0 opacity-50"
-                style={{
-                  backgroundImage: getGoalAsset(goal),
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }}
-                aria-hidden="true"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-              <div className="absolute inset-0 animate-pulse bg-gradient-to-tr from-transparent via-white/10 to-transparent" />
-              <div className="relative z-10">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/80">
-                  Expected Output
-                </p>
-                <h4 className="mt-2 text-base font-semibold">{outputLabel}</h4>
-                <button
-                  type="button"
-                  onClick={onOpenTemplates}
-                  className="mt-4 inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-                >
-                  <Layers3 size={14} />
-                  Explore templates
-                </button>
-              </div>
             </article>
           </div>
         </div>

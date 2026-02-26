@@ -23,6 +23,7 @@ import { PLAN_CREDITS } from '@/lib/constants';
 interface HeaderProps {
   activeSection: 'home' | 'templates' | 'assistant' | 'guide' | 'academy';
   currentTool: ToolMode;
+  isOnboardingOpen: boolean;
   isMenuOpen: boolean;
   onToggleMenu: () => void;
   onNavigateHome: () => void;
@@ -31,6 +32,7 @@ interface HeaderProps {
   onNavigateTemplates: () => void;
   onNavigateAssistant: () => void;
   onNavigateGuide: () => void;
+  onNavigateOnboarding: () => void;
   onNavigateAcademy: () => void;
   onSignOut: () => void;
   userEmail?: string;
@@ -41,6 +43,7 @@ interface HeaderProps {
 export function Header({
   activeSection,
   currentTool,
+  isOnboardingOpen,
   isMenuOpen,
   onToggleMenu,
   onNavigateHome,
@@ -49,6 +52,7 @@ export function Header({
   onNavigateTemplates,
   onNavigateAssistant,
   onNavigateGuide,
+  onNavigateOnboarding,
   onNavigateAcademy,
   onSignOut,
   userEmail,
@@ -138,6 +142,9 @@ export function Header({
                 <button onClick={onNavigateGuide} className={`mt-1 ${navButtonClass(activeSection === 'guide')}`}>
                   Guide
                 </button>
+                <button onClick={onNavigateOnboarding} className={`mt-1 ${navButtonClass(isOnboardingOpen)}`}>
+                  Onboarding
+                </button>
               </div>
 
               <div className="mt-3 rounded-2xl border border-gray-200 bg-white p-2">
@@ -174,6 +181,9 @@ export function Header({
               </button>
               <button onClick={onNavigateGuide} className={collapsedNavButtonClass(activeSection === 'guide')} aria-label="Guide" title="Guide">
                 <BookOpen size={17} />
+              </button>
+              <button onClick={onNavigateOnboarding} className={collapsedNavButtonClass(isOnboardingOpen)} aria-label="Onboarding guide" title="Onboarding guide">
+                <Sparkles size={17} />
               </button>
             </div>
           )}

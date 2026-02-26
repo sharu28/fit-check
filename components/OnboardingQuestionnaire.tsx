@@ -137,6 +137,8 @@ export function OnboardingQuestionnaire({
   useEffect(() => {
     if (!isOpen) return;
     setStep(0);
+    setIndustry(null);
+    setGoal(null);
   }, [isOpen]);
 
   const summaryText = useMemo(() => {

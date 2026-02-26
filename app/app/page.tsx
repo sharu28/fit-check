@@ -257,9 +257,13 @@ export default function HomePage() {
         isCompleted = true;
       } else if (rawValue) {
         const parsed = JSON.parse(rawValue) as {
+          completed?: unknown;
           industry?: unknown;
           goal?: unknown;
         };
+        if (parsed?.completed === true) {
+          isCompleted = true;
+        }
         if (isValidIndustry(parsed?.industry) && isValidGoal(parsed?.goal)) {
           loadedSelection = {
             industry: parsed.industry,
@@ -274,7 +278,8 @@ export default function HomePage() {
     }
 
     setOnboardingSelection(loadedSelection);
-    setHideOnboardingQuickStart(false);
+    // Keep quick-start auto-hidden after first-time onboarding; users can reopen onboarding manually from sidebar.
+    setHideOnboardingQuickStart(isCompleted);
     if (loadedSelection?.industry) {
       setTemplateIndustryPreference(loadedSelection.industry);
     }
@@ -795,6 +800,11 @@ export default function HomePage() {
     setActiveSection('guide');
   }, []);
 
+  const navigateOnboarding = useCallback(() => {
+    setActiveSection('home');
+    setShowOnboardingWizard(true);
+  }, []);
+
   const navigateAcademy = useCallback(() => {
     setActiveSection('academy');
   }, []);
@@ -967,6 +977,7 @@ export default function HomePage() {
         <Header
           activeSection={activeSection}
           currentTool={currentTool}
+          isOnboardingOpen={showOnboardingWizard}
           isMenuOpen={isMenuOpen}
           onToggleMenu={() => setIsMenuOpen((prev) => !prev)}
           onNavigateHome={navigateHome}
@@ -975,6 +986,7 @@ export default function HomePage() {
           onNavigateTemplates={navigateTemplates}
           onNavigateAssistant={navigateAssistant}
           onNavigateGuide={navigateGuide}
+          onNavigateOnboarding={navigateOnboarding}
           onNavigateAcademy={navigateAcademy}
           onSignOut={signOut}
           userEmail={user.email}

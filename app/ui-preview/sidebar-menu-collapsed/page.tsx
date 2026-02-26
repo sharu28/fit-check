@@ -6,6 +6,7 @@ import { Header } from '@/components/Header';
 export default function SidebarMenuCollapsedPreviewPage() {
   const [activeSection, setActiveSection] = useState<'home' | 'templates' | 'assistant' | 'guide' | 'academy'>('templates');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [currentTool, setCurrentTool] = useState<'style-studio' | 'video-generator' | 'bg-remover'>('style-studio');
 
   return (
@@ -15,21 +16,42 @@ export default function SidebarMenuCollapsedPreviewPage() {
           <Header
             activeSection={activeSection}
             currentTool={currentTool}
+            isOnboardingOpen={isOnboardingOpen}
             isMenuOpen={isMenuOpen}
             onToggleMenu={() => setIsMenuOpen((prev) => !prev)}
-            onNavigateHome={() => setActiveSection('home')}
+            onNavigateHome={() => {
+              setIsOnboardingOpen(false);
+              setActiveSection('home');
+            }}
             onNavigateImage={() => {
+              setIsOnboardingOpen(false);
               setCurrentTool('style-studio');
               setActiveSection('home');
             }}
             onNavigateVideo={() => {
+              setIsOnboardingOpen(false);
               setCurrentTool('video-generator');
               setActiveSection('home');
             }}
-            onNavigateTemplates={() => setActiveSection('templates')}
-            onNavigateAssistant={() => setActiveSection('assistant')}
-            onNavigateGuide={() => setActiveSection('guide')}
-            onNavigateAcademy={() => setActiveSection('academy')}
+            onNavigateTemplates={() => {
+              setIsOnboardingOpen(false);
+              setActiveSection('templates');
+            }}
+            onNavigateAssistant={() => {
+              setIsOnboardingOpen(false);
+              setActiveSection('assistant');
+            }}
+            onNavigateGuide={() => {
+              setIsOnboardingOpen(false);
+              setActiveSection('guide');
+            }}
+            onNavigateOnboarding={() => {
+              setIsOnboardingOpen(true);
+            }}
+            onNavigateAcademy={() => {
+              setIsOnboardingOpen(false);
+              setActiveSection('academy');
+            }}
             onSignOut={() => {}}
             userEmail="demo@fitcheck.ai"
             credits={8}
