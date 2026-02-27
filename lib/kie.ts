@@ -3,6 +3,14 @@ import { KIE_MODELS } from './constants';
 const KIE_BASE_URL = 'https://api.kie.ai/api/v1';
 const KIE_UPLOAD_URL = 'https://kieai.redpandaai.co/api/file-base64-upload';
 
+interface KieApiResponse<T = unknown> {
+  code?: number;
+  msg?: string;
+  message?: string;
+  error?: string;
+  data?: T;
+}
+
 /** Recursively search an object for string values that look like URLs */
 function extractUrls(obj: unknown): string[] {
   const urls: string[] = [];
@@ -59,8 +67,19 @@ export async function uploadImageToKie(
     throw new Error(`kie.ai file upload failed: ${err}`);
   }
 
-  const json = await res.json();
-  return json.data.downloadUrl;
+  const json = (await res.json()) as KieApiResponse<{ downloadUrl?: string }>;
+  if (json.code && json.code !== 200) {
+    throw new Error(
+      json.msg || json.message || json.error || 'kie.ai file upload failed',
+    );
+  }
+
+  const downloadUrl = json.data?.downloadUrl;
+  if (!downloadUrl) {
+    throw new Error('kie.ai upload response did not include downloadUrl');
+  }
+
+  return downloadUrl;
 }
 
 /**
@@ -91,8 +110,22 @@ export async function createImageGeneration(params: {
     throw new Error(`kie.ai task creation failed: ${err}`);
   }
 
-  const json = await res.json();
-  return json.data.taskId;
+  const json = (await res.json()) as KieApiResponse<{ taskId?: string }>;
+  if (json.code && json.code !== 200) {
+    throw new Error(
+      json.msg ||
+      json.message ||
+      json.error ||
+      'kie.ai image task creation failed',
+    );
+  }
+
+  const taskId = json.data?.taskId;
+  if (!taskId) {
+    throw new Error('kie.ai image task response did not include taskId');
+  }
+
+  return taskId;
 }
 
 /**
@@ -111,13 +144,15 @@ export async function createVideoGeneration(params: {
 
   const input: Record<string, unknown> = {
     prompt: params.prompt,
-    aspect_ratio: params.aspectRatio,
-    duration: params.duration,
+    duration: String(params.duration),
     sound: params.sound,
   };
 
   if (params.imageInput) {
-    input.image_input = [params.imageInput];
+    // Per KIE Kling docs, image-to-video expects "image_urls".
+    input.image_urls = [params.imageInput];
+  } else {
+    input.aspect_ratio = params.aspectRatio;
   }
 
   const res = await fetch(`${KIE_BASE_URL}/jobs/createTask`, {
@@ -131,8 +166,26 @@ export async function createVideoGeneration(params: {
     throw new Error(`kie.ai video task creation failed: ${err}`);
   }
 
-  const json = await res.json();
-  return json.data.taskId;
+  const json = (await res.json()) as KieApiResponse<{ taskId?: string }>;
+  if (json.code && json.code !== 200) {
+    throw new Error(
+      json.msg ||
+      json.message ||
+      json.error ||
+      'kie.ai video task creation failed',
+    );
+  }
+
+  const taskId = json.data?.taskId;
+  if (!taskId) {
+    const message =
+      json?.msg ||
+      json?.message ||
+      json?.error ||
+      'kie.ai returned an invalid response for video task creation.';
+    throw new Error(message);
+  }
+  return taskId as string;
 }
 
 /**
@@ -154,8 +207,26 @@ export async function getTaskStatus(taskId: string): Promise<{
     throw new Error(`kie.ai status check failed: ${err}`);
   }
 
-  const json = await res.json();
+  const json = (await res.json()) as KieApiResponse<{
+    state?: string;
+    resultJson?: unknown;
+    progress?: number;
+    failMsg?: string;
+    failCode?: string;
+  }>;
+  if (json.code && json.code !== 200) {
+    throw new Error(
+      json.msg ||
+      json.message ||
+      json.error ||
+      'kie.ai status check failed',
+    );
+  }
+
   const data = json.data;
+  if (!data) {
+    throw new Error('kie.ai status response did not include task data');
+  }
 
   // Log full response for debugging
   console.log('[kie.ai status]', JSON.stringify({ state: data.state, resultJson: data.resultJson, progress: data.progress }, null, 2));
@@ -196,7 +267,9 @@ export async function getTaskStatus(taskId: string): Promise<{
   }
 
   return {
-    status: stateMap[data.state] || 'processing',
+    status:
+      stateMap[(data.state ?? 'waiting') as keyof typeof stateMap] ||
+      'processing',
     progress: data.progress ?? 0,
     resultUrls,
     error: data.failMsg,

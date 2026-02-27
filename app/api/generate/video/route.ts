@@ -59,6 +59,10 @@ export async function POST(request: NextRequest) {
       sound: sound ?? false,
     });
 
+    if (!taskId) {
+      throw new Error('Video task could not be created. Please try again.');
+    }
+
     // Deduct credits after successful task submission
     await deductCredits(supabase, user.id, creditCost, user.email);
 

@@ -10,6 +10,13 @@
 - [x] Collapsed sidebar uses icons
 - [x] Template library scrolling fixed
 - [x] Added Batch Background Removal screen + template
+- [x] Added canonical route surface for workspace sections:
+  - `/app/image`, `/app/video`, `/app/templates`, `/app/assistant`, `/app/guide`, `/app/onboarding`, `/app/academy`
+- [x] Added route mapping utilities (`lib/app-routes.ts`)
+- [x] Added `/app` compatibility redirect and legacy `?tool=` URL normalization
+- [x] Converted primary workspace navigation to route-driven behavior
+- [x] Added workspace-level shared state provider (`WorkspaceStateProvider`) for cross-route transient state
+- [x] Added routing smoke checklist (`docs/routing-smoke-checklist.md`)
 
 ### Templates and Prompting
 - [x] Added Launch Campaign Video template
@@ -92,6 +99,9 @@
 - [ ] Add lightweight telemetry/alerts for gallery metadata failures
 - [ ] Build `Brand DNA` memory: let users save visual identity preferences and auto-apply them to prompts/settings
 - [ ] Build `Launch Pack Autopilot`: one-click goal-to-campaign flow that generates a launch pack (hero image, channel variants, remove-bg asset, short video, and caption drafts)
+- [ ] Continue route refactor by extracting monolithic `AppWorkspacePage` into dedicated workspace components (`ImageWorkspace`, `VideoWorkspace`, etc.)
+- [ ] Remove temporary route-wrapper duplication once extraction is complete
+- [ ] Add automated route-level tests for canonical URLs and back/forward behavior
 
 ---
 

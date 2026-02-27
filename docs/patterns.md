@@ -22,6 +22,18 @@ No global state library. State is local/page-level and composed via hooks:
 - `useCredits` - plan/credits fetch and refresh
 - `useToast` - transient notifications
 
+Shared workspace transient state is provided at `app/app/layout.tsx` via:
+
+- `WorkspaceStateProvider` (`components/WorkspaceStateProvider.tsx`)
+  - currently persists gallery-open state across `/app/*` route transitions.
+
+## Routing Pattern
+
+- Canonical routes are defined in `lib/app-routes.ts`.
+- Workspace navigation should use route pushes (`router.push`) instead of local-only section toggles.
+- Compatibility parser supports legacy URLs (`/app?tool=...`) and redirects to canonical routes.
+- Wrapper pages under `app/app/*/page.tsx` render shared workspace logic (`AppWorkspacePage`) during migration.
+
 ## Auth Guard Pattern (API)
 
 ```ts
@@ -153,3 +165,16 @@ Key principle: UI gallery is metadata-driven (`gallery_items` is source of truth
 
 - External frontend skill stack and install commands are documented in `docs/frontend-skill-pack.md`.
 - Apply those skills primarily to onboarding, quick-start feed, upload/dropzone cards, and prompt/action surfaces.
+
+## Video Input Composition Pattern
+
+- Video API currently accepts one `imageInput`.
+- Client composes product-first inputs into one effective reference image:
+  - `productImages` (up to 4)
+  - optional `subjectImage`
+  - optional `environment` (`preset` or uploaded image)
+- Composition utility: `lib/video-composite.ts`.
+- Environment presets metadata: `lib/video-environment-presets.ts`.
+- Fallback behavior:
+  - if composition fails, use first available image input when possible
+  - prompt-only generation remains valid when no images are provided

@@ -99,8 +99,10 @@ export function useVideoGeneration({ onVideoSaved, onCreditsRefresh }: UseVideoG
     return null;
   }, [environment, productImages, subjectImage]);
 
-  const generate = useCallback(async (promptOverride?: string) => {
-    const promptSource = (promptOverride ?? prompt).trim();
+  const generate = useCallback(async (promptOverride?: string | unknown) => {
+    const promptCandidate =
+      typeof promptOverride === 'string' ? promptOverride : prompt;
+    const promptSource = promptCandidate.trim();
     if (!promptSource) return 'Please enter a prompt for the video.';
 
     const environmentHint = getEnvironmentPromptHint(environment);
@@ -148,7 +150,11 @@ export function useVideoGeneration({ onVideoSaved, onCreditsRefresh }: UseVideoG
         throw new Error(err.error || 'Video generation failed');
       }
 
-      const { taskId } = await res.json();
+      const payload = await res.json();
+      const taskId = payload?.taskId;
+      if (!taskId || typeof taskId !== 'string') {
+        throw new Error('Video task was not created. Please retry.');
+      }
 
       let attempts = 0;
       const MAX_ATTEMPTS = 120; // ~10 minutes at 5s intervals

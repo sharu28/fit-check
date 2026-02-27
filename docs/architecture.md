@@ -18,6 +18,29 @@ Core surfaces:
 
 The backend handles auth, generation orchestration, credits, storage, gallery metadata, billing hooks, and shared model presets.
 
+## App Route Surface
+
+Canonical user routes:
+
+- `/app/image`
+- `/app/video`
+- `/app/templates`
+- `/app/assistant`
+- `/app/guide`
+- `/app/onboarding`
+- `/app/academy`
+
+Compatibility routes:
+
+- `/app` redirects to canonical default (`/app/image`)
+- Legacy query params like `/app?tool=video` are normalized to canonical routes
+
+Implementation notes:
+
+- `lib/app-routes.ts` contains route constants + mapping helpers.
+- `app/app/layout.tsx` mounts `WorkspaceStateProvider` for shared transient workspace state.
+- Route wrapper pages (`app/app/*/page.tsx`) currently render one shared workspace component: `app/app/AppWorkspacePage.tsx`.
+
 ## External Services
 
 | Service | Purpose | Client |
@@ -132,9 +155,11 @@ If Polar products are not configured, billing routes return `503` and app core s
 
 - Sidebar supports expanded + collapsed modes.
 - Collapsed nav uses icons.
+- Sidebar/top navigation is route-driven and updates URL for each workspace section.
 - Image/Video are top-level tool entries.
 - Image nav defaults to Single Swap mode.
 - On first session, users see business-intake onboarding and are routed to a recommended starter use case.
+- Returning users are routed to canonical home (`/app/image`), while onboarding remains accessible via sidebar route (`/app/onboarding`).
 - Intake cards pull optional media from `public/onboarding/industries/<industry-slug>.{webp|jpg|jpeg|png}` and `public/onboarding/goals/<goal-slug>.{webp|jpg|jpeg|png}` (gradient fallback is used when files are missing).
 - Intake modal keeps footer actions fixed while card grids scroll, so navigation buttons stay visible.
 - Style Studio empty-state can switch to personalized quick-start feed driven by onboarding answers.
@@ -146,6 +171,11 @@ If Polar products are not configured, billing routes return `503` and app core s
   - `Change Subject`
 - Single Swap guide remains visible through partial input states and supports direct in-guide uploads.
 - Assistant greeting is local-time based (`morning/afternoon/night`).
+- Video workspace now follows product-first quick-start:
+  - Multi-product inputs (up to 4)
+  - Optional Subject picker
+  - Optional Environment picker
+  - Client-side composition into a single `imageInput` for current video API compatibility
 
 ## Template Prompt Presets
 
