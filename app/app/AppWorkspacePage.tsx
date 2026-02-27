@@ -73,6 +73,8 @@ const VIDEO_TEMPLATE_OPTIONS: TemplateOption[] = TEMPLATE_OPTIONS.filter(
   (option) => option.targetTool === 'video-generator',
 );
 
+const UI_TEST_AUTH_BYPASS = process.env.NEXT_PUBLIC_PW_E2E_AUTH_BYPASS === '1';
+
 type OnboardingSelection = {
   industry: OnboardingIndustry;
   goal: OnboardingGoal;
@@ -1156,7 +1158,7 @@ export function AppWorkspacePage() {
     );
   }
 
-  if (!user && !uiTestBypass) return null;
+  if (!user && !UI_TEST_AUTH_BYPASS) return null;
   if (pathname === APP_ROUTES.root) return null;
 
   return (
@@ -1191,7 +1193,7 @@ export function AppWorkspacePage() {
           onNavigateOnboarding={navigateOnboarding}
           onNavigateAcademy={navigateAcademy}
           onSignOut={signOut}
-          userEmail={user.email}
+          userEmail={user?.email ?? ''}
           credits={credits}
           plan={plan}
         />
