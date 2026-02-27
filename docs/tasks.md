@@ -23,6 +23,7 @@
 - [x] Added curated `presetPrompts` for templates that already had baked prompts
 - [x] `Use Template` now applies a selected preset prompt variant to the target tool
 - [x] Added template product-type picker and industry-aware prompt adaptation before template application
+- [x] Added deterministic template-to-model routing (KIE-only) for image/video generation with server-side fallback to defaults and warning surfacing
 
 ### Single Swap and Onboarding
 - [x] Added first-run onboarding wizard

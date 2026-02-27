@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useRef, useCallback } from 'react';
 import {
@@ -12,7 +12,10 @@ import type {
 } from '@/types';
 
 export type VideoStatus = 'idle' | 'generating' | 'success' | 'error';
+export type VideoInputMode = 'simple' | 'advanced';
 const MAX_VIDEO_PRODUCTS = 4;
+const VIDEO_PROMPT_GUARDRAILS =
+  'Use one continuous scene with a single subject, no split-screen layouts, preserve garment print, color, silhouette, and drape, keep body proportions natural, and maintain stable camera motion.';
 
 export interface VideoItem {
   id: string;
@@ -23,9 +26,22 @@ export interface VideoItem {
 interface UseVideoGenerationOptions {
   onVideoSaved?: (item: GalleryItem) => void;
   onCreditsRefresh?: () => void;
+  onWarning?: (message: string) => void;
 }
 
-export function useVideoGeneration({ onVideoSaved, onCreditsRefresh }: UseVideoGenerationOptions = {}) {
+function appendVideoPromptGuardrails(prompt: string) {
+  if (!prompt.trim()) return prompt;
+  if (prompt.toLowerCase().includes('no split-screen')) return prompt;
+  return `${prompt} ${VIDEO_PROMPT_GUARDRAILS}`.trim();
+}
+
+export function useVideoGeneration({
+  onVideoSaved,
+  onCreditsRefresh,
+  onWarning,
+}: UseVideoGenerationOptions = {}) {
+  const [mode, setMode] = useState<VideoInputMode>('simple');
+  const [simpleReferenceImage, setSimpleReferenceImage] = useState<UploadedImage | null>(null);
   const [productImages, setProductImages] = useState<UploadedImage[]>([]);
   const [subjectImage, setSubjectImage] = useState<UploadedImage | null>(null);
   const [environment, setEnvironment] = useState<VideoEnvironmentSelection | null>(null);
@@ -75,40 +91,39 @@ export function useVideoGeneration({ onVideoSaved, onCreditsRefresh }: UseVideoG
   }, []);
 
   // Compatibility alias for legacy call sites while video UI migration settles.
-  const referenceImage = productImages[0] ?? null;
+  const referenceImage = simpleReferenceImage;
   const setReferenceImage = useCallback((image: UploadedImage | null) => {
-    setProductImages((prev) => {
-      if (!image) {
-        return prev.filter((_, index) => index !== 0);
-      }
-
-      if (prev.length === 0) {
-        return [image];
-      }
-
-      const next = [...prev];
-      next[0] = image;
-      return next.slice(0, MAX_VIDEO_PRODUCTS);
-    });
+    setSimpleReferenceImage(image);
+    setMode('simple');
   }, []);
 
   const resolveFallbackReferenceImage = useCallback(() => {
+    if (simpleReferenceImage) return simpleReferenceImage;
     if (productImages.length > 0) return productImages[0];
     if (subjectImage) return subjectImage;
     if (environment?.type === 'image') return environment.image;
     return null;
-  }, [environment, productImages, subjectImage]);
+  }, [environment, productImages, simpleReferenceImage, subjectImage]);
 
-  const generate = useCallback(async (promptOverride?: string | unknown) => {
+  const generate = useCallback(async (
+    promptOverride?: string | unknown,
+    options?: { templateId?: string | null },
+  ) => {
     const promptCandidate =
       typeof promptOverride === 'string' ? promptOverride : prompt;
     const promptSource = promptCandidate.trim();
     if (!promptSource) return 'Please enter a prompt for the video.';
 
-    const environmentHint = getEnvironmentPromptHint(environment);
-    const effectivePrompt = environmentHint
+    const environmentHint =
+      mode === 'advanced' ? getEnvironmentPromptHint(environment) : '';
+    const contextualPrompt = environmentHint
       ? `${promptSource} ${environmentHint}`.trim()
       : promptSource;
+    const effectivePrompt = appendVideoPromptGuardrails(contextualPrompt);
+
+    if (mode === 'simple' && !simpleReferenceImage) {
+      return 'Please add a single reference image first.';
+    }
 
     setStatus('generating');
     setErrorMsg(null);
@@ -116,16 +131,20 @@ export function useVideoGeneration({ onVideoSaved, onCreditsRefresh }: UseVideoG
 
     try {
       let composedImage: UploadedImage | null = null;
-      try {
-        composedImage = await composeVideoReferenceInput({
-          productImages,
-          subjectImage,
-          environment,
-          aspectRatio,
-        });
-      } catch (compositionError) {
-        console.warn('Video reference composition failed; using fallback image.', compositionError);
-        composedImage = resolveFallbackReferenceImage();
+      if (mode === 'simple') {
+        composedImage = simpleReferenceImage;
+      } else {
+        try {
+          composedImage = await composeVideoReferenceInput({
+            productImages,
+            subjectImage,
+            environment,
+            aspectRatio,
+          });
+        } catch (compositionError) {
+          console.warn('Video reference composition failed; using fallback image.', compositionError);
+          composedImage = resolveFallbackReferenceImage();
+        }
       }
 
       const res = await fetch('/api/generate/video', {
@@ -139,6 +158,7 @@ export function useVideoGeneration({ onVideoSaved, onCreditsRefresh }: UseVideoG
           aspectRatio,
           duration,
           sound,
+          templateId: options?.templateId ?? null,
         }),
       });
 
@@ -151,6 +171,9 @@ export function useVideoGeneration({ onVideoSaved, onCreditsRefresh }: UseVideoG
       }
 
       const payload = await res.json();
+      if (typeof payload.warning === 'string' && payload.warning.trim()) {
+        onWarning?.(payload.warning);
+      }
       const taskId = payload?.taskId;
       if (!taskId || typeof taskId !== 'string') {
         throw new Error('Video task was not created. Please retry.');
@@ -223,13 +246,16 @@ export function useVideoGeneration({ onVideoSaved, onCreditsRefresh }: UseVideoG
     return null;
   }, [
     prompt,
+    mode,
     environment,
     aspectRatio,
     duration,
     sound,
+    simpleReferenceImage,
     stopPolling,
     onCreditsRefresh,
     onVideoSaved,
+    onWarning,
     productImages,
     resolveFallbackReferenceImage,
     subjectImage,
@@ -248,6 +274,8 @@ export function useVideoGeneration({ onVideoSaved, onCreditsRefresh }: UseVideoG
   }, [stopPolling]);
 
   return {
+    mode, setMode,
+    simpleReferenceImage, setSimpleReferenceImage,
     referenceImage, setReferenceImage,
     productImages, addOrReplaceProduct, removeProduct,
     subjectImage, setSubjectImage,
@@ -260,3 +288,6 @@ export function useVideoGeneration({ onVideoSaved, onCreditsRefresh }: UseVideoG
     generate, reset, removeVideo,
   };
 }
+
+
+

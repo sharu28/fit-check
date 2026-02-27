@@ -7,9 +7,14 @@ import type { UploadedImage, GalleryItem, KieTaskStatus } from '@/types';
 interface UseGenerationOptions {
   onGenerationSaved?: (item: GalleryItem) => void;
   onCreditsRefresh?: () => void;
+  onWarning?: (message: string) => void;
 }
 
-export function useGeneration({ onGenerationSaved, onCreditsRefresh }: UseGenerationOptions = {}) {
+export function useGeneration({
+  onGenerationSaved,
+  onCreditsRefresh,
+  onWarning,
+}: UseGenerationOptions = {}) {
   const [status, setStatus] = useState<AppStatus>(AppStatus.IDLE);
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -77,6 +82,7 @@ export function useGeneration({ onGenerationSaved, onCreditsRefresh }: UseGenera
       aspectRatio: string;
       resolution: string;
       numGenerations: number;
+      templateId?: string | null;
     }) => {
       setStatus(AppStatus.GENERATING);
       setErrorMsg(null);
@@ -95,6 +101,7 @@ export function useGeneration({ onGenerationSaved, onCreditsRefresh }: UseGenera
           aspectRatio: params.aspectRatio,
           resolution: params.resolution,
           numGenerations: params.numGenerations,
+          templateId: params.templateId ?? null,
         };
 
         if (params.personImage) {
@@ -119,7 +126,11 @@ export function useGeneration({ onGenerationSaved, onCreditsRefresh }: UseGenera
           throw new Error(err.error || 'Generation request failed');
         }
 
-        const { taskIds, taskId } = await res.json();
+        const payload = await res.json();
+        if (typeof payload.warning === 'string' && payload.warning.trim()) {
+          onWarning?.(payload.warning);
+        }
+        const { taskIds, taskId } = payload;
         const normalizedTaskIds: string[] = Array.isArray(taskIds)
           ? taskIds
           : taskId
@@ -211,7 +222,7 @@ export function useGeneration({ onGenerationSaved, onCreditsRefresh }: UseGenera
         setStatus(AppStatus.ERROR);
       }
     },
-    [pollTaskStatus, onGenerationSaved, onCreditsRefresh],
+    [pollTaskStatus, onGenerationSaved, onCreditsRefresh, onWarning],
   );
 
   const reset = useCallback(() => {

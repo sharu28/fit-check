@@ -3,6 +3,10 @@ import { createClient } from '@/lib/supabase/server';
 import { uploadImageToKie, createImageGeneration } from '@/lib/kie';
 import { getImageCreditCost, getUserCredits, deductCredits } from '@/lib/credits';
 import { buildBrandDnaPromptAddendum, normalizeBrandDnaInput } from '@/lib/brand-dna';
+import {
+  MODEL_FALLBACK_WARNING,
+  resolveImageModel,
+} from '@/lib/template-model-map';
 import sharp from 'sharp';
 
 async function buildGarmentPanel(
@@ -75,6 +79,7 @@ export async function POST(request: NextRequest) {
       aspectRatio,
       resolution,
       numGenerations,
+      templateId,
     } = body;
 
     const missing: string[] = [];
@@ -99,14 +104,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const normalizedResolution = resolution || '2K';
-
-    if (!['2K', '4K'].includes(normalizedResolution)) {
+    if (resolution && !['2K', '4K'].includes(resolution)) {
       return NextResponse.json(
         { error: 'Resolution must be 2K or 4K' },
         { status: 400 },
       );
     }
+
+    const {
+      modelId: preferredImageModel,
+      defaultModelId: defaultImageModel,
+      resolution: resolvedResolution,
+      forcedResolution,
+    } = resolveImageModel(templateId, resolution);
 
     const { credits, plan, isUnlimited } = await getUserCredits(
       supabase,
@@ -123,7 +133,7 @@ export async function POST(request: NextRequest) {
 
     // Credit check
     const creditCost = getImageCreditCost(
-      normalizedResolution as '2K' | '4K',
+      resolvedResolution,
       requestedGenerations,
     );
 
@@ -197,21 +207,76 @@ export async function POST(request: NextRequest) {
       })),
     ];
 
-    const taskIds = await Promise.all(
-      Array.from({ length: requestedGenerations }, () =>
-        createImageGeneration({
+    const createTaskWithFallback = async () => {
+      if (preferredImageModel === defaultImageModel) {
+        const taskId = await createImageGeneration({
           prompt: fullPrompt,
           imageInputs,
           aspectRatio,
-          resolution: normalizedResolution,
-        }),
-      ),
+          resolution: resolvedResolution,
+          modelOverride: preferredImageModel,
+        });
+        return { taskId, fallbackUsed: false };
+      }
+
+      try {
+        const taskId = await createImageGeneration({
+          prompt: fullPrompt,
+          imageInputs,
+          aspectRatio,
+          resolution: resolvedResolution,
+          modelOverride: preferredImageModel,
+        });
+        return { taskId, fallbackUsed: false };
+      } catch (preferredError) {
+        console.warn('[generate:image] preferred model rejected, retrying with default', {
+          templateId: templateId ?? null,
+          requestedModel: preferredImageModel,
+          fallbackModel: defaultImageModel,
+          tool: 'image',
+          error:
+            preferredError instanceof Error
+              ? preferredError.message
+              : String(preferredError),
+        });
+
+        const taskId = await createImageGeneration({
+          prompt: fullPrompt,
+          imageInputs,
+          aspectRatio,
+          resolution: resolvedResolution,
+          modelOverride: defaultImageModel,
+        });
+        return { taskId, fallbackUsed: true };
+      }
+    };
+
+    const taskResults = await Promise.all(
+      Array.from({ length: requestedGenerations }, () => createTaskWithFallback()),
     );
+    const taskIds = taskResults.map((result) => result.taskId);
+    const fallbackUsed = taskResults.some((result) => result.fallbackUsed);
+    const finalModel = fallbackUsed ? defaultImageModel : preferredImageModel;
+
+    console.log('[generate:image] task created', {
+      templateId: templateId ?? null,
+      requestedModel: preferredImageModel,
+      finalModel,
+      fallbackUsed,
+      requestedResolution: resolution ?? null,
+      finalResolution: resolvedResolution,
+      forcedResolution: forcedResolution ?? null,
+      tool: 'image',
+    });
 
     // Deduct credits after successful task submission
     await deductCredits(supabase, user.id, creditCost, user.email);
 
-    return NextResponse.json({ taskIds, creditsUsed: isUnlimited ? 0 : creditCost });
+    return NextResponse.json({
+      taskIds,
+      creditsUsed: isUnlimited ? 0 : creditCost,
+      warning: fallbackUsed ? MODEL_FALLBACK_WARNING : undefined,
+    });
   } catch (error) {
     console.error('Image generation error:', error);
     return NextResponse.json(

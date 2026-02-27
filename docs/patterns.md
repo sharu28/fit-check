@@ -25,7 +25,8 @@ No global state library. State is local/page-level and composed via hooks:
 Shared workspace transient state is provided at `app/app/layout.tsx` via:
 
 - `WorkspaceStateProvider` (`components/WorkspaceStateProvider.tsx`)
-  - currently persists gallery-open state across `/app/*` route transitions.
+  - persists gallery-open state across `/app/*` route transitions.
+  - stores `activeTemplateId` so template context survives route switches and is reused on generate.
 
 ## Routing Pattern
 
@@ -110,6 +111,11 @@ Client-side:
 On `Use Template`, one prompt variant is selected and applied to the target tool.
 - Before applying a template, users choose product type in a dedicated visual picker.
 - Prompt text is then adapted from template flow + selected product type so non-garment users do not receive clothing-only prompt language.
+- Template ID is persisted as `activeTemplateId` and sent to generation APIs.
+- Model selection is server-resolved in `lib/template-model-map.ts`:
+  - Image/video templates map to deterministic KIE model IDs.
+  - Some image templates force resolution overrides (`2K`/`4K`) regardless of UI choice.
+  - If a preferred model fails, API retries with default model and returns warning text (non-blocking).
 
 ## Brand DNA Pattern
 
@@ -168,13 +174,16 @@ Key principle: UI gallery is metadata-driven (`gallery_items` is source of truth
 
 ## Video Input Composition Pattern
 
-- Video API currently accepts one `imageInput`.
-- Client composes product-first inputs into one effective reference image:
+- Video API accepts one `imageInput`.
+- Video UI has two modes:
+  - `simple` (default for all users): one `simpleReferenceImage` only.
+  - `advanced` (premium/admin users): composed reference from product + optional subject/environment.
+- Client reference composition is only used in advanced mode:
   - `productImages` (up to 4)
   - optional `subjectImage`
   - optional `environment` (`preset` or uploaded image)
 - Composition utility: `lib/video-composite.ts`.
 - Environment presets metadata: `lib/video-environment-presets.ts`.
-- Fallback behavior:
-  - if composition fails, use first available image input when possible
-  - prompt-only generation remains valid when no images are provided
+- Prompt guardrails are appended by default for video generation to reduce split-screen and garment drift outcomes.
+- Current entitlement gate is UI-level:
+  - advanced mode is locked for non-premium/non-admin plans.

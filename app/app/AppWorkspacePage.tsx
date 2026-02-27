@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -217,7 +217,12 @@ export function AppWorkspacePage() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { toasts, addToast, removeToast } = useToast();
   const { credits, plan, refreshCredits } = useCredits(user?.id ?? null);
-  const { galleryOpen, setGalleryOpen } = useWorkspaceState();
+  const {
+    galleryOpen,
+    setGalleryOpen,
+    activeTemplateId,
+    setActiveTemplateId,
+  } = useWorkspaceState();
   const maxGenerations = plan === 'free' ? 1 : 4;
 
   // Tool mode
@@ -257,6 +262,7 @@ export function AppWorkspacePage() {
   const [showImageToVideoPrompt, setShowImageToVideoPrompt] = useState(false);
   const [imageToVideoPrompt, setImageToVideoPrompt] = useState('');
   const [pendingVideoProductSlot, setPendingVideoProductSlot] = useState<number | null>(null);
+  const [videoUploadTarget, setVideoUploadTarget] = useState<'simple' | 'advanced'>('simple');
   const subjectSectionRef = useRef<HTMLDivElement | null>(null);
   const garmentSectionRef = useRef<HTMLDivElement | null>(null);
   const quickGarmentInputRef = useRef<HTMLInputElement | null>(null);
@@ -356,12 +362,14 @@ export function AppWorkspacePage() {
   const generation = useGeneration({
     onGenerationSaved: gallery.addGeneration,
     onCreditsRefresh: refreshCredits,
+    onWarning: (message) => addToast(message, 'info'),
   });
 
   // Video generation
   const video = useVideoGeneration({
     onVideoSaved: gallery.addVideo,
     onCreditsRefresh: refreshCredits,
+    onWarning: (message) => addToast(message, 'info'),
   });
 
   // Handlers
@@ -432,8 +440,23 @@ export function AppWorkspacePage() {
       aspectRatio,
       resolution,
       numGenerations: generationCount,
+      templateId: activeTemplateId,
     });
-  }, [credits, personImage, garments, prompt, mode, scene, visualStyle, aspectRatio, resolution, generationCount, generation, addToast]);
+  }, [
+    credits,
+    personImage,
+    garments,
+    prompt,
+    mode,
+    scene,
+    visualStyle,
+    aspectRatio,
+    resolution,
+    generationCount,
+    activeTemplateId,
+    generation,
+    addToast,
+  ]);
 
   const focusGuideTarget = useCallback((target: 'garment' | 'subject') => {
     router.push(APP_ROUTES.image);
@@ -453,7 +476,7 @@ export function AppWorkspacePage() {
   // Remove background (gallery images)
   const [removingBgId, setRemovingBgId] = useState<string | null>(null);
 
-  // Remove background (garment slots) — tracked as a Set to support parallel removals
+  // Remove background (garment slots) Ã¢â‚¬â€ tracked as a Set to support parallel removals
   const [removingBgSlots, setRemovingBgSlots] = useState<Set<number>>(new Set());
 
   // Core BG removal for a single slot; takes the image directly to avoid stale closure issues
@@ -505,7 +528,7 @@ export function AppWorkspacePage() {
       addToast(`${files.length - toProcess.length} file(s) skipped (wrong type or too large).`, 'info');
     }
 
-    // Convert files → UploadedImage in parallel for instant previews
+    // Convert files Ã¢â€ â€™ UploadedImage in parallel for instant previews
     const uploaded = await Promise.all(
       toProcess.map(async (file) => {
         const [previewUrl, base64] = await Promise.all([readFileToDataUrl(file), fileToBase64(file)]);
@@ -521,7 +544,7 @@ export function AppWorkspacePage() {
       return next;
     });
 
-    // BG removal in parallel — failures toast per-slot but don't block others
+    // BG removal in parallel Ã¢â‚¬â€ failures toast per-slot but don't block others
     await Promise.allSettled(
       uploaded.map((img, i) =>
         removeBgForSlot(startIndex + i, img).catch((error) => {
@@ -562,10 +585,16 @@ export function AppWorkspacePage() {
       window.location.href = '/pricing';
       return;
     }
+
+    if (video.mode === 'advanced' && plan !== 'premium' && plan !== 'admin') {
+      addToast('Advanced video mode is available on Premium plan.', 'info');
+      return;
+    }
+
     const safePrompt = typeof promptOverride === 'string' ? promptOverride : undefined;
-    const err = await video.generate(safePrompt);
+    const err = await video.generate(safePrompt, { templateId: activeTemplateId });
     if (err) addToast(err, 'info');
-  }, [credits, video, addToast]);
+  }, [credits, video, addToast, activeTemplateId, plan]);
 
   const completeOnboarding = useCallback((selection?: OnboardingSelection) => {
     setShowOnboardingWizard(false);
@@ -657,15 +686,33 @@ export function AppWorkspacePage() {
     setPersonImage(uploaded);
   }, [buildUploadedImage]);
 
+  const openVideoSimpleReferenceUpload = useCallback(() => {
+    setVideoUploadTarget('simple');
+    setPendingVideoProductSlot(null);
+    video.setMode('simple');
+    quickVideoProductInputRef.current?.click();
+  }, [video]);
+
   const openVideoProductUpload = useCallback((slotIndex?: number) => {
     if (typeof slotIndex !== 'number' && video.productImages.length >= 4) {
       addToast('Max 4 products reached. Replace an existing product slot.', 'info');
       return;
     }
 
+    setVideoUploadTarget('advanced');
+    video.setMode('advanced');
     setPendingVideoProductSlot(typeof slotIndex === 'number' ? slotIndex : null);
     quickVideoProductInputRef.current?.click();
-  }, [video.productImages.length, addToast]);
+  }, [video, addToast]);
+
+  const handleVideoSimpleReferenceUpload = useCallback(async (file: File) => {
+    const uploaded = await buildUploadedImage(file);
+    if (!uploaded) return;
+
+    video.setSimpleReferenceImage(uploaded);
+    video.setMode('simple');
+    addToast('Video reference image added.', 'success');
+  }, [buildUploadedImage, video, addToast]);
 
   const handleVideoProductUpload = useCallback(async (file: File, slotIndex?: number | null) => {
     const uploaded = await buildUploadedImage(file);
@@ -677,8 +724,25 @@ export function AppWorkspacePage() {
     }
 
     video.addOrReplaceProduct(uploaded, typeof slotIndex === 'number' ? slotIndex : undefined);
-    addToast('Product photo added for video generation.', 'success');
+    video.setMode('advanced');
+    addToast('Product photo added for advanced video generation.', 'success');
   }, [buildUploadedImage, video, addToast]);
+
+  const handleVideoSimpleReferenceGallerySelect = useCallback(
+    async (item: GalleryItem) => {
+      try {
+        const uploadedImage = await gallery.selectGalleryItem(item);
+        video.setSimpleReferenceImage(uploadedImage);
+        video.setMode('simple');
+        gallery.setShowLibrary(false);
+        setPendingVideoProductSlot(null);
+        addToast('Reference image selected for video generation.', 'success');
+      } catch {
+        addToast('Failed to load image from gallery.', 'error');
+      }
+    },
+    [gallery, video, addToast],
+  );
 
   const handleVideoProductGallerySelect = useCallback(
     async (item: GalleryItem, slotIndex?: number | null) => {
@@ -690,9 +754,10 @@ export function AppWorkspacePage() {
 
         const uploadedImage = await gallery.selectGalleryItem(item);
         video.addOrReplaceProduct(uploadedImage, typeof slotIndex === 'number' ? slotIndex : undefined);
+        video.setMode('advanced');
         gallery.setShowLibrary(false);
         setPendingVideoProductSlot(null);
-        addToast('Product image selected for video generation.', 'success');
+        addToast('Product image selected for advanced video generation.', 'success');
       } catch {
         addToast('Failed to load image from gallery.', 'error');
       }
@@ -701,6 +766,7 @@ export function AppWorkspacePage() {
   );
 
   const handleVideoSubjectSelect = useCallback((image: UploadedImage) => {
+    video.setMode('advanced');
     video.setSubjectImage(image);
     setSubjectModalTarget(null);
     addToast('Subject reference added.', 'success');
@@ -709,6 +775,7 @@ export function AppWorkspacePage() {
   const handleVideoSubjectGallerySelect = useCallback(async (item: GalleryItem) => {
     try {
       const uploadedImage = await gallery.selectGalleryItem(item);
+      video.setMode('advanced');
       video.setSubjectImage(uploadedImage);
       setSubjectModalTarget(null);
       addToast('Subject selected from gallery.', 'success');
@@ -718,6 +785,7 @@ export function AppWorkspacePage() {
   }, [gallery, video, addToast]);
 
   const handleVideoEnvironmentSelect = useCallback((selection: VideoEnvironmentSelection) => {
+    video.setMode('advanced');
     video.setEnvironment(selection);
     setShowEnvironmentModal(false);
     addToast(
@@ -768,17 +836,19 @@ export function AppWorkspacePage() {
       }
       router.push(APP_ROUTES.image);
     } else if (template.targetTool === 'video-generator') {
+      video.setMode('simple');
       video.setPrompt(resolvedPrompt);
       router.push(APP_ROUTES.video);
     } else {
       router.push(APP_ROUTES.image);
     }
+    setActiveTemplateId(template.id);
     addToast(
       options?.successMessage ??
         `${template.title} loaded. Customize and generate when ready.`,
       'success',
     );
-  }, [pickTemplatePrompt, video, addToast, router]);
+  }, [pickTemplatePrompt, video, addToast, router, setActiveTemplateId]);
 
   const handleUseTemplate = useCallback((template: TemplateOption) => {
     setPendingTemplateSelection(template);
@@ -851,6 +921,7 @@ export function AppWorkspacePage() {
 
         video.setReferenceImage(referenceImage);
         video.setPrompt(resolvedPrompt);
+        setActiveTemplateId(template.id);
         router.push(APP_ROUTES.video);
         gallery.setShowLibrary(false);
         setShowVideoTemplatePicker(false);
@@ -874,6 +945,7 @@ export function AppWorkspacePage() {
       onboardingSelection,
       buildUploadedImageFromUrl,
       video,
+      setActiveTemplateId,
       gallery,
       addToast,
       router,
@@ -917,6 +989,28 @@ export function AppWorkspacePage() {
   const latestImageForVideoUrl =
     generation.resultImage ?? gallery.generations[0]?.url ?? null;
 
+  const handleUseLatestImageForVideoReference = useCallback(async () => {
+    if (!latestImageForVideoUrl) {
+      addToast('Generate at least one image first, then use it as video reference.', 'info');
+      return;
+    }
+
+    try {
+      const referenceImage = await buildUploadedImageFromUrl(latestImageForVideoUrl);
+      video.setSimpleReferenceImage(referenceImage);
+      video.setMode('simple');
+      gallery.setShowLibrary(false);
+      addToast('Latest generated image loaded as video reference.', 'success');
+    } catch (error) {
+      addToast(
+        error instanceof Error
+          ? error.message
+          : 'Failed to prepare image for video generation.',
+        'error',
+      );
+    }
+  }, [latestImageForVideoUrl, buildUploadedImageFromUrl, video, gallery, addToast]);
+
   const handleGenerateVideoFromImageScreen = useCallback(async () => {
     if (credits !== null && credits <= 0) {
       addToast('You are out of credits. Upgrade your plan to continue.', 'error');
@@ -940,7 +1034,9 @@ export function AppWorkspacePage() {
       video.setReferenceImage(referenceImage);
       video.setPrompt(trimmedPrompt);
 
-      const err = await video.generate(trimmedPrompt);
+      const err = await video.generate(trimmedPrompt, {
+        templateId: activeTemplateId,
+      });
       if (err) {
         addToast(err, 'info');
         return;
@@ -964,6 +1060,7 @@ export function AppWorkspacePage() {
     imageToVideoPrompt,
     buildUploadedImageFromUrl,
     video,
+    activeTemplateId,
     addToast,
     gallery,
     router,
@@ -998,6 +1095,7 @@ export function AppWorkspacePage() {
     const template = TEMPLATE_OPTIONS.find((option) => option.id === templateId);
 
     if (selectedTool === 'video-generator') {
+      video.setMode('simple');
       video.setPrompt(intakePrompt);
       router.push(APP_ROUTES.video);
       setIsMenuOpen(false);
@@ -1014,10 +1112,11 @@ export function AppWorkspacePage() {
     }
 
     setTemplateIndustryPreference(selection.industry);
+    setActiveTemplateId(templateId ?? null);
     setHideOnboardingQuickStart(false);
     completeOnboarding(selection);
     addToast(`Workspace set for ${goalLabel} in ${industryLabel}.`, 'success');
-  }, [video, completeOnboarding, addToast, router]);
+  }, [video, completeOnboarding, addToast, router, setActiveTemplateId]);
 
   const showPersonalizedQuickStart =
     activeSection === 'home' &&
@@ -1057,12 +1156,12 @@ export function AppWorkspacePage() {
     );
   }
 
-  if (!user) return null;
+  if (!user && !uiTestBypass) return null;
   if (pathname === APP_ROUTES.root) return null;
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <PostHogIdentify user={user} />
+      {user && <PostHogIdentify user={user} />}
       {isMenuOpen && (
         <button
           type="button"
@@ -1412,60 +1511,24 @@ export function AppWorkspacePage() {
           </>
         ) : currentTool === 'video-generator' ? (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-2 p-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => openVideoProductUpload()}
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-                >
-                  Add Product
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPendingVideoProductSlot(null);
-                    gallery.setShowLibrary(true);
-                  }}
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-                >
-                  Choose From Gallery
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSubjectModalTarget('video')}
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-                >
-                  Subject (optional)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowEnvironmentModal(true)}
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-                >
-                  Environment (optional)
-                </button>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={navigateTemplates}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-                >
-                  Templates
-                </button>
-                <button
-                  onClick={() => gallery.setShowLibrary(!gallery.showLibrary)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
-                    gallery.showLibrary
-                      ? 'bg-indigo-50 text-indigo-600 border-indigo-200'
-                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  <Images size={16} />
-                  Gallery
-                </button>
-              </div>
+            <div className="flex flex-wrap items-center justify-end gap-2 p-4">
+              <button
+                onClick={navigateTemplates}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+              >
+                Templates
+              </button>
+              <button
+                onClick={() => gallery.setShowLibrary(!gallery.showLibrary)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
+                  gallery.showLibrary
+                    ? 'bg-indigo-50 text-indigo-600 border-indigo-200'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <Images size={16} />
+                Gallery
+              </button>
             </div>
 
             <input
@@ -1476,9 +1539,14 @@ export function AppWorkspacePage() {
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (file) {
-                  void handleVideoProductUpload(file, pendingVideoProductSlot);
+                  if (videoUploadTarget === 'simple') {
+                    void handleVideoSimpleReferenceUpload(file);
+                  } else {
+                    void handleVideoProductUpload(file, pendingVideoProductSlot);
+                  }
                 }
                 event.currentTarget.value = '';
+                setVideoUploadTarget('simple');
                 setPendingVideoProductSlot(null);
               }}
             />
@@ -1491,6 +1559,10 @@ export function AppWorkspacePage() {
                   videos={gallery.videos}
                   folders={gallery.folders}
                   onSelectUpload={(item) => {
+                    if (video.mode === 'simple') {
+                      void handleVideoSimpleReferenceGallerySelect(item);
+                      return;
+                    }
                     void handleVideoProductGallerySelect(item, pendingVideoProductSlot);
                   }}
                   onDelete={gallery.deleteItem}
@@ -1518,18 +1590,41 @@ export function AppWorkspacePage() {
                 onReset={video.reset}
                 onRemoveVideo={video.removeVideo}
                 credits={credits}
+                plan={plan}
+                mode={video.mode}
+                onModeChange={video.setMode}
+                simpleReferenceImage={video.simpleReferenceImage}
+                onAddSimpleReference={openVideoSimpleReferenceUpload}
+                onChooseSimpleFromGallery={() => {
+                  video.setMode('simple');
+                  setVideoUploadTarget('simple');
+                  setPendingVideoProductSlot(null);
+                  gallery.setShowLibrary(true);
+                }}
+                onClearSimpleReference={() => video.setSimpleReferenceImage(null)}
+                onUseLatestGeneratedImage={latestImageForVideoUrl ? () => {
+                  void handleUseLatestImageForVideoReference();
+                } : undefined}
                 productImages={video.productImages}
                 subjectImage={video.subjectImage}
                 environment={video.environment}
                 onAddProduct={openVideoProductUpload}
                 onChooseProductFromGallery={(slotIndex?: number) => {
+                  video.setMode('advanced');
+                  setVideoUploadTarget('advanced');
                   setPendingVideoProductSlot(typeof slotIndex === 'number' ? slotIndex : null);
                   gallery.setShowLibrary(true);
                 }}
                 onRemoveProduct={video.removeProduct}
-                onOpenSubjectPicker={() => setSubjectModalTarget('video')}
+                onOpenSubjectPicker={() => {
+                  video.setMode('advanced');
+                  setSubjectModalTarget('video');
+                }}
                 onClearSubject={() => video.setSubjectImage(null)}
-                onOpenEnvironmentPicker={() => setShowEnvironmentModal(true)}
+                onOpenEnvironmentPicker={() => {
+                  video.setMode('advanced');
+                  setShowEnvironmentModal(true);
+                }}
                 onClearEnvironment={() => video.setEnvironment(null)}
               />
             )}
@@ -1607,3 +1702,18 @@ export function AppWorkspacePage() {
 }
 
 export default AppWorkspacePage;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

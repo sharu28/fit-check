@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "generate:onboarding:industries": "node scripts/generate-onboarding-industry-assets.mjs"
+    "generate:onboarding:industries": "node scripts/generate-onboarding-industry-assets.mjs",
+    "pw:test": "playwright test",
+    "pw:snap": "playwright test tests/ui/workspace-screenshots.spec.ts --workers=1",
+    "pw:test:video": "playwright test tests/ui/video-workspace.spec.ts --workers=1"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.454.0",
@@ -24,6 +27,7 @@
     "sharp": "^0.34.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4.1.8",
     "@types/node": "^22.14.0",
     "@types/react": "^19.1.6",

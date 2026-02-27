@@ -90,12 +90,14 @@ export async function createImageGeneration(params: {
   imageInputs: { url: string; type: 'person' | 'garment' }[];
   aspectRatio: string;
   resolution: string;
+  modelOverride?: string;
 }): Promise<string> {
+  const model = params.modelOverride || KIE_MODELS.image;
   const res = await fetch(`${KIE_BASE_URL}/jobs/createTask`, {
     method: 'POST',
     headers: getHeaders(),
     body: JSON.stringify({
-      model: KIE_MODELS.image,
+      model,
       input: {
         prompt: params.prompt,
         image_input: params.imageInputs.map((img) => img.url),
@@ -137,10 +139,11 @@ export async function createVideoGeneration(params: {
   aspectRatio: string;
   duration: 5 | 10;
   sound: boolean;
+  modelOverride?: string;
 }): Promise<string> {
-  const model = params.imageInput
+  const model = params.modelOverride || (params.imageInput
     ? KIE_MODELS.video_image
-    : KIE_MODELS.video_text;
+    : KIE_MODELS.video_text);
 
   const input: Record<string, unknown> = {
     prompt: params.prompt,

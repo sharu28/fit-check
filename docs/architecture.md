@@ -100,25 +100,27 @@ Shared subject presets (admin-created): label/category/tags + original/thumbnail
 
 ## Image Generation Flow
 
-1. Client submits references + prompt + settings to `/api/generate/image`.
+1. Client submits references + prompt + settings to `/api/generate/image` (optional `templateId`).
 2. Server validates auth, resolution, generation count, and free-tier limits.
 3. Server checks credits and returns `402 INSUFFICIENT_CREDITS` when needed.
 4. Server uploads references to kie.ai.
-5. Server creates N tasks in parallel (N = selected generation count).
-6. If the user has Brand DNA saved, server appends normalized Brand DNA guidance to prompt.
-7. Server deducts credits.
-8. Client polls all task IDs concurrently and aggregates progress.
-9. Completed outputs are saved through `/api/storage/upload`.
-10. UI displays saved result URLs and refreshes credits.
-11. Loading UI renders one animated placeholder card per requested generation count.
+5. Server resolves template policy (`lib/template-model-map.ts`) for model + optional forced resolution override.
+6. Server creates N tasks in parallel (N = selected generation count), with fallback to default model if preferred model fails.
+7. If the user has Brand DNA saved, server appends normalized Brand DNA guidance to prompt.
+8. Server deducts credits.
+9. Client polls all task IDs concurrently and aggregates progress.
+10. Completed outputs are saved through `/api/storage/upload`.
+11. UI displays saved result URLs and refreshes credits.
+12. Loading UI renders one animated placeholder card per requested generation count.
 
 ## Video Generation Flow
 
-1. Client submits prompt (+ optional reference image) to `/api/generate/video`.
-2. Server checks credits and creates video task.
-3. Client polls `/api/generate/status`.
-4. On completion, video is saved with `/api/storage/upload` as `type=video`.
-5. Gallery `videos` tab updates.
+1. Client submits prompt (+ optional reference image) to `/api/generate/video` (optional `templateId`).
+2. Server checks credits, resolves template model policy, and creates video task.
+3. If preferred model fails, server retries with default video model and returns non-blocking warning metadata.
+4. Client polls `/api/generate/status`.
+5. On completion, video is saved with `/api/storage/upload` as `type=video`.
+6. Gallery `videos` tab updates.
 
 ## Gallery and Storage Reliability
 
@@ -176,6 +178,7 @@ If Polar products are not configured, billing routes return `503` and app core s
   - Optional Subject picker
   - Optional Environment picker
   - Client-side composition into a single `imageInput` for current video API compatibility
+- Template selection now sets workspace-level `activeTemplateId`, used by both image and video generation routes for deterministic model routing.
 
 ## Template Prompt Presets
 

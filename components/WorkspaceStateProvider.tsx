@@ -11,16 +11,19 @@ import {
 interface WorkspaceStateValue {
   galleryOpen: boolean;
   setGalleryOpen: (next: boolean) => void;
+  activeTemplateId: string | null;
+  setActiveTemplateId: (next: string | null) => void;
 }
 
 const WorkspaceStateContext = createContext<WorkspaceStateValue | null>(null);
 
 export function WorkspaceStateProvider({ children }: { children: ReactNode }) {
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
 
   const value = useMemo(
-    () => ({ galleryOpen, setGalleryOpen }),
-    [galleryOpen],
+    () => ({ galleryOpen, setGalleryOpen, activeTemplateId, setActiveTemplateId }),
+    [galleryOpen, activeTemplateId],
   );
 
   return (
