@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, currentUser } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
 import { uploadImageToKie, createImageGeneration } from '@/lib/kie';
 import { getImageCreditCost, getUserCredits, deductCredits } from '@/lib/credits';
@@ -60,13 +59,12 @@ async function buildGarmentPanel(
 export async function POST(request: NextRequest) {
   try {
     // Verify auth
-    const { userId } = await auth();
-    if (!userId) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const clerkUser = await currentUser();
-    const userEmail = clerkUser?.primaryEmailAddress?.emailAddress ?? null;
-    const supabase = await createClient();
+    const userEmail = user.email ?? null;
 
     const body = await request.json();
     const {
@@ -120,7 +118,7 @@ export async function POST(request: NextRequest) {
 
     const { credits, plan, isUnlimited } = await getUserCredits(
       supabase,
-      userId,
+      user.id,
       userEmail,
     );
 
@@ -184,7 +182,7 @@ export async function POST(request: NextRequest) {
     const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
       .select('brand_dna')
-      .eq('id', userId)
+      .eq('id', user.id)
       .maybeSingle();
 
     if (profileError) {
@@ -270,7 +268,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Deduct credits after successful task submission
-    await deductCredits(supabase, userId, creditCost, userEmail);
+    await deductCredits(supabase, user.id, creditCost, userEmail);
 
     return NextResponse.json({
       taskIds,

@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
 import { getTaskStatus } from '@/lib/kie';
 
 export async function GET(request: NextRequest) {
   try {
     // Verify auth
-    const { userId } = await auth();
-    if (!userId) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const supabase = await createClient();
 
     const taskId = request.nextUrl.searchParams.get('taskId');
     if (!taskId) {

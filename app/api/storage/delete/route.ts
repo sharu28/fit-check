@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
 import { deleteFromR2, getKeyFromUrl } from '@/lib/r2';
 
 export async function POST(request: NextRequest) {
   try {
     // Verify auth
-    const { userId } = await auth();
-    if (!userId) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const supabase = await createClient();
 
     const body = await request.json();
     const { id } = body;
@@ -24,7 +23,7 @@ export async function POST(request: NextRequest) {
       .from('gallery_items')
       .select('url, thumbnail_url')
       .eq('id', id)
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
       .single();
 
     if (item) {
@@ -51,7 +50,7 @@ export async function POST(request: NextRequest) {
       .from('gallery_items')
       .delete()
       .eq('id', id)
-      .eq('user_id', userId);
+      .eq('user_id', user.id);
 
     if (error) {
       console.error('Failed to delete gallery item:', error);

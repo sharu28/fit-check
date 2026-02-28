@@ -1,5 +1,4 @@
 ﻿import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
 import { listR2Objects } from '@/lib/r2';
 
@@ -137,24 +136,24 @@ async function recoverGalleryItemsFromR2(
 
 export async function GET() {
   try {
-    const { userId } = await auth();
-    if (!userId) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const supabase = await createClient();
 
     let items: GalleryRow[] = [];
 
     const { data: fetchedItems, error: itemsError } = await supabase
       .from('gallery_items')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (itemsError) {
       if (isMissingTableError(itemsError as PostgrestLikeError, 'gallery_items')) {
         console.warn('gallery_items table missing; loading gallery directly from R2');
-        items = await listGalleryRowsFromR2(userId);
+        items = await listGalleryRowsFromR2(user.id);
       } else {
         console.error('Failed to fetch gallery:', itemsError);
         return NextResponse.json(
@@ -167,7 +166,7 @@ export async function GET() {
 
       if (items.length === 0) {
         try {
-          const recovered = await recoverGalleryItemsFromR2(supabase, userId);
+          const recovered = await recoverGalleryItemsFromR2(supabase, user.id);
           if (recovered.length > 0) {
             items = recovered;
           }
@@ -181,7 +180,7 @@ export async function GET() {
     const { data: fetchedFolders, error: folderError } = await supabase
       .from('gallery_folders')
       .select('id, name, parent_id, created_at, updated_at')
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
       .order('created_at', { ascending: true });
 
     if (folderError) {

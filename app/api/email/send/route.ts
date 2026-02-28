@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { auth, currentUser } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
 import { isResendConfigured, sendEmailWithResend } from '@/lib/resend';
 
@@ -19,13 +18,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const { userId } = await auth();
-    const clerkUser = await currentUser();
-    const userEmail = clerkUser?.primaryEmailAddress?.emailAddress ?? null;
-    if (!userId || !userEmail) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const userEmail = user?.email ?? null;
+    if (!user || !userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const supabase = await createClient();
 
     const body = (await request.json()) as SendEmailRequest;
     const subject = body.subject?.trim();

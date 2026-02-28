@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { createClient } from '@/lib/supabase/server';
 
 const PLAN_PRODUCT_MAP: Record<string, string | undefined> = {
   pro: process.env.POLAR_PRO_PRODUCT_ID,
@@ -8,8 +8,9 @@ const PLAN_PRODUCT_MAP: Record<string, string | undefined> = {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

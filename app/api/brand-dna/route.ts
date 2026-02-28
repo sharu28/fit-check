@@ -1,20 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
 import { normalizeBrandDnaInput } from '@/lib/brand-dna';
 
 export async function GET() {
   try {
-    const { userId } = await auth();
-    if (!userId) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const supabase = await createClient();
 
     const { data: profile, error } = await supabase
       .from('user_profiles')
       .select('brand_dna')
-      .eq('id', userId)
+      .eq('id', user.id)
       .maybeSingle();
 
     if (error) {
@@ -33,11 +32,11 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const supabase = await createClient();
 
     const body = await request.json();
     const brandDna = normalizeBrandDnaInput(body?.brandDna ?? body);
@@ -48,7 +47,7 @@ export async function POST(request: NextRequest) {
         brand_dna: brandDna,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', userId)
+      .eq('id', user.id)
       .select('brand_dna')
       .single();
 

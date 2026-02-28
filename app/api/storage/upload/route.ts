@@ -1,6 +1,5 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
-import { auth, currentUser } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
 import { deleteFromR2, uploadToR2 } from '@/lib/r2';
 import { applyWatermark } from '@/lib/watermark';
@@ -20,13 +19,12 @@ function isMissingGalleryItemsTable(error: PostgrestLikeError | null): boolean {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const clerkUser = await currentUser();
-    const userEmail = clerkUser?.primaryEmailAddress?.emailAddress ?? null;
-    const supabase = await createClient();
+    const userEmail = user.email ?? null;
 
     const body = await request.json();
     const { base64, url, mimeType, type, folderId = null } = body;
@@ -36,7 +34,7 @@ export async function POST(request: NextRequest) {
         .from('gallery_folders')
         .select('id')
         .eq('id', folderId)
-        .eq('user_id', userId)
+        .eq('user_id', user.id)
         .maybeSingle();
 
       if (folderError) {
@@ -79,7 +77,7 @@ export async function POST(request: NextRequest) {
       try {
         const { plan, isUnlimited } = await getUserCredits(
           supabase,
-          userId,
+          user.id,
           userEmail,
         );
         if (plan === 'free' && !isUnlimited) {
@@ -90,7 +88,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const originalKey = `${userId}/${type}s/${id}.${ext}`;
+    const originalKey = `${user.id}/${type}s/${id}.${ext}`;
     const originalUrl = await uploadToR2(
       originalKey,
       fileBuffer,
@@ -106,7 +104,7 @@ export async function POST(request: NextRequest) {
           .webp({ quality: 80 })
           .toBuffer();
 
-        thumbKey = `${userId}/${type}s/thumbs/${id}.webp`;
+        thumbKey = `${user.id}/${type}s/thumbs/${id}.webp`;
         thumbnailUrl = await uploadToR2(thumbKey, thumbnailBuffer, 'image/webp');
       } catch (thumbnailError) {
         console.error('Thumbnail generation failed:', thumbnailError);
@@ -117,7 +115,7 @@ export async function POST(request: NextRequest) {
       .from('gallery_items')
       .insert({
         id,
-        user_id: userId,
+        user_id: user.id,
         url: originalUrl,
         thumbnail_url: thumbnailUrl,
         mime_type: mimeType || 'image/jpeg',

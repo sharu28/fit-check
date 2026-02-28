@@ -1,28 +1,38 @@
 'use client';
 
-import { useUser, useClerk } from '@clerk/nextjs';
+import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import type { User } from '@supabase/supabase-js';
 
 export function useAuth() {
-  const { user, isLoaded } = useUser();
-  const { signOut } = useClerk();
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const supabase = createClient();
   const router = useRouter();
 
-  const handleSignOut = async () => {
-    await signOut();
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+      setLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase]);
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
     router.push('/auth');
     router.refresh();
   };
 
-  return {
-    user: user
-      ? {
-          id: user.id,
-          email: user.primaryEmailAddress?.emailAddress ?? null,
-          phone: user.primaryPhoneNumber?.phoneNumber ?? null,
-        }
-      : null,
-    loading: !isLoaded,
-    signOut: handleSignOut,
-  };
+  return { user, loading, signOut };
 }

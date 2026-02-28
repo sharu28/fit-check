@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import posthog from 'posthog-js';
-type AuthUser = { id: string; email: string | null; phone?: string | null };
+type AuthUser = { id: string; email?: string | null; phone?: string | null };
 
 export function PostHogIdentify({ user }: { user: AuthUser | null }) {
   useEffect(() => {

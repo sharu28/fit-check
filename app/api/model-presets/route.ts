@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
-import { auth, currentUser } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
 import { uploadToR2 } from '@/lib/r2';
 
@@ -47,11 +46,11 @@ function isMissingModelPresetsTable(error: PostgrestLikeError | null): boolean {
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const supabase = await createClient();
 
     const search = request.nextUrl.searchParams.get('q')?.trim().toLowerCase() || '';
     const category = request.nextUrl.searchParams.get('category')?.trim().toLowerCase() || '';
@@ -110,13 +109,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth();
-    const clerkUser = await currentUser();
-    const userEmail = clerkUser?.primaryEmailAddress?.emailAddress ?? null;
-    if (!userId || !userEmail) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const userEmail = user?.email ?? null;
+    if (!user || !userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const supabase = await createClient();
 
     if (!isAdminEmail(userEmail)) {
       return NextResponse.json(
@@ -182,7 +180,7 @@ export async function POST(request: NextRequest) {
         image_url: imageUrl,
         thumbnail_url: thumbnailUrl,
         mime_type: mimeType,
-        created_by: userId,
+        created_by: user.id,
         created_at: now,
       })
       .select('id, label, category, tags, image_url, thumbnail_url, mime_type, created_at')

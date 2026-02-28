@@ -14,18 +14,17 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.454.0",
-    "@clerk/nextjs": "^6.39.0",
     "@next/third-parties": "^16.1.6",
     "@polar-sh/nextjs": "^0.3.0",
     "@polar-sh/sdk": "^0.30.0",
+    "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.49.1",
     "lucide-react": "^0.563.0",
     "next": "^15.3.3",
     "posthog-js": "^1.347.2",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "sharp": "^0.34.2",
-    "svix": "^1.86.0"
+    "sharp": "^0.34.2"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
