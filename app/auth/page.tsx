@@ -21,8 +21,8 @@ function getClerkErrorMessage(err: unknown): string {
 }
 
 export default function AuthPage() {
-  const { signIn, isLoaded: signInLoaded } = useSignIn();
-  const { signUp, isLoaded: signUpLoaded } = useSignUp();
+  const { signIn, setActive: setActiveSignIn, isLoaded: signInLoaded } = useSignIn();
+  const { signUp, setActive: setActiveSignUp, isLoaded: signUpLoaded } = useSignUp();
   const router = useRouter();
 
   const [mode, setMode] = useState<AuthMode>('login');
@@ -61,7 +61,8 @@ export default function AuthPage() {
       if (mode === 'login') {
         const identifier = inputMode === 'phone' ? phone : email;
         const result = await signIn.create({ identifier, password });
-        if (result.status === 'complete') {
+        if (result.status === 'complete' && result.createdSessionId) {
+          await setActiveSignIn({ session: result.createdSessionId });
           router.push('/app');
           router.refresh();
         }
@@ -92,7 +93,8 @@ export default function AuthPage() {
         inputMode === 'phone'
           ? await signUp.attemptPhoneNumberVerification({ code: verificationCode })
           : await signUp.attemptEmailAddressVerification({ code: verificationCode });
-      if (result.status === 'complete') {
+      if (result.status === 'complete' && result.createdSessionId) {
+        await setActiveSignUp({ session: result.createdSessionId });
         router.push('/app');
         router.refresh();
       }
@@ -343,4 +345,8 @@ export default function AuthPage() {
     </div>
   );
 }
+
+
+
+
 
