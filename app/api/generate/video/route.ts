@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
 import { uploadImageToKie, createVideoGeneration } from '@/lib/kie';
 import { getVideoCreditCost, getUserCredits, deductCredits } from '@/lib/credits';
@@ -7,14 +8,13 @@ import { MODEL_FALLBACK_WARNING, resolveVideoModel } from '@/lib/template-model-
 export async function POST(request: NextRequest) {
   try {
     // Verify auth
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const clerkUser = await currentUser();
+    const userEmail = clerkUser?.primaryEmailAddress?.emailAddress ?? null;
+    const supabase = await createClient();
 
     const body = await request.json();
     const { imageInput, prompt, aspectRatio, duration, sound, templateId } = body;
@@ -30,8 +30,8 @@ export async function POST(request: NextRequest) {
     const creditCost = getVideoCreditCost((duration || 5) as 5 | 10);
     const { credits, isUnlimited } = await getUserCredits(
       supabase,
-      user.id,
-      user.email,
+      userId,
+      userEmail,
     );
 
     if (!isUnlimited && credits < creditCost) {
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Deduct credits after successful task submission
-    await deductCredits(supabase, user.id, creditCost, user.email);
+    await deductCredits(supabase, userId, creditCost, userEmail);
 
     return NextResponse.json({
       taskId,

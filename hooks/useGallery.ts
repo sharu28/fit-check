@@ -23,7 +23,10 @@ export function useGallery({ userId }: UseGalleryOptions) {
     const loadGallery = async () => {
       try {
         const res = await fetch('/api/gallery');
-        if (!res.ok) return;
+        if (!res.ok) {
+          console.error('Gallery load failed:', res.status, await res.text().catch(() => ''));
+          return;
+        }
         const data = await res.json();
         setUploads(data.uploads ?? []);
         setGenerations(data.generations ?? []);

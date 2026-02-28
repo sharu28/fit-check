@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
 import { uploadToR2 } from '@/lib/r2';
 
@@ -10,6 +11,13 @@ type CreateModelPresetBody = {
   mimeType?: string;
   base64?: string;
   url?: string;
+};
+
+type PostgrestLikeError = {
+  code?: string;
+  message?: string;
+  details?: string;
+  hint?: string;
 };
 
 function normalizeTags(input?: string[] | string): string[] {
@@ -30,16 +38,20 @@ function isAdminEmail(email: string): boolean {
   return admins.includes(email.toLowerCase());
 }
 
+function isMissingModelPresetsTable(error: PostgrestLikeError | null): boolean {
+  if (!error) return false;
+  if (error.code === 'PGRST205') return true;
+  const haystack = [error.message, error.details, error.hint].join(' ');
+  return /model_presets/i.test(haystack) && /schema.cache/i.test(haystack);
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const supabase = await createClient();
 
     const search = request.nextUrl.searchParams.get('q')?.trim().toLowerCase() || '';
     const category = request.nextUrl.searchParams.get('category')?.trim().toLowerCase() || '';
@@ -55,6 +67,10 @@ export async function GET(request: NextRequest) {
       .limit(limit);
 
     if (error) {
+      if (isMissingModelPresetsTable(error)) {
+        console.warn('model_presets table missing; returning empty presets list');
+        return NextResponse.json({ presets: [], categories: [] });
+      }
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
@@ -94,16 +110,15 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user?.email) {
+    const { userId } = await auth();
+    const clerkUser = await currentUser();
+    const userEmail = clerkUser?.primaryEmailAddress?.emailAddress ?? null;
+    if (!userId || !userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const supabase = await createClient();
 
-    if (!isAdminEmail(user.email)) {
+    if (!isAdminEmail(userEmail)) {
       return NextResponse.json(
         { error: 'Forbidden: only preset admins can upload model presets' },
         { status: 403 },
@@ -167,13 +182,19 @@ export async function POST(request: NextRequest) {
         image_url: imageUrl,
         thumbnail_url: thumbnailUrl,
         mime_type: mimeType,
-        created_by: user.id,
+        created_by: userId,
         created_at: now,
       })
       .select('id, label, category, tags, image_url, thumbnail_url, mime_type, created_at')
       .single();
 
     if (error) {
+      if (isMissingModelPresetsTable(error)) {
+        return NextResponse.json(
+          { error: 'Model presets are not configured yet. Ask an admin to run database migrations.' },
+          { status: 503 },
+        );
+      }
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 

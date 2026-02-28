@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const supabase = await createClient();
 
     const body = await request.json();
     const itemId = body?.itemId;
@@ -25,7 +23,7 @@ export async function POST(request: NextRequest) {
         .from('gallery_folders')
         .select('id')
         .eq('id', folderId)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .maybeSingle();
 
       if (folderError) {
@@ -44,7 +42,7 @@ export async function POST(request: NextRequest) {
         folder_id: folderId,
       })
       .eq('id', itemId)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .select('id, folder_id')
       .maybeSingle();
 

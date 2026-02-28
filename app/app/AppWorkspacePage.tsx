@@ -224,6 +224,8 @@ export function AppWorkspacePage() {
     setGalleryOpen,
     activeTemplateId,
     setActiveTemplateId,
+    pendingVideoSetup,
+    setPendingVideoSetup,
   } = useWorkspaceState();
   const maxGenerations = plan === 'free' ? 1 : 4;
 
@@ -335,9 +337,11 @@ export function AppWorkspacePage() {
     }
 
     if (isCompleted) {
-      setShowOnboardingWizard(false);
       if (pathname === APP_ROUTES.onboarding) {
-        router.replace(APP_ROUTES.image);
+        // User explicitly navigated here from the sidebar — let them redo onboarding
+        setShowOnboardingWizard(true);
+      } else {
+        setShowOnboardingWizard(false);
       }
       return;
     }
@@ -359,6 +363,22 @@ export function AppWorkspacePage() {
   useEffect(() => {
     setGalleryOpen(showLibrary);
   }, [showLibrary, setGalleryOpen]);
+
+  // Apply a cross-route video setup (image URL + prompt) that was saved before navigation
+  useEffect(() => {
+    if (currentTool !== 'video-generator' || !pendingVideoSetup) return;
+    const setup = pendingVideoSetup;
+    setPendingVideoSetup(null);
+    void buildUploadedImageFromUrl(setup.url)
+      .then((img) => {
+        video.setReferenceImage(img);
+        video.setPrompt(setup.prompt);
+        setActiveTemplateId(setup.templateId);
+        addToast(`Template loaded. Click Generate to create a video from this image.`, 'success');
+      })
+      .catch(() => addToast('Failed to prepare image for video generation.', 'error'));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTool, pendingVideoSetup]);
 
   // Generation
   const generation = useGeneration({
@@ -907,8 +927,7 @@ export function AppWorkspacePage() {
     async (template: TemplateOption) => {
       if (!videoTemplateSourceUrl) return;
 
-      try {
-        const selectedPrompt = pickTemplatePrompt(template);
+      const selectedPrompt = pickTemplatePrompt(template);
         const resolvedPrompt = onboardingSelection
           ? buildIndustryAwareTemplatePrompt(
               template,
@@ -917,39 +936,23 @@ export function AppWorkspacePage() {
             )
           : selectedPrompt;
 
-        const referenceImage = await buildUploadedImageFromUrl(
-          videoTemplateSourceUrl,
-        );
-
-        video.setReferenceImage(referenceImage);
-        video.setPrompt(resolvedPrompt);
-        setActiveTemplateId(template.id);
-        router.push(APP_ROUTES.video);
-        gallery.setShowLibrary(false);
+        // Save setup to layout-level provider so it survives the route change
+        setPendingVideoSetup({
+          url: videoTemplateSourceUrl,
+          prompt: resolvedPrompt,
+          templateId: template.id,
+        });
         setShowVideoTemplatePicker(false);
         setVideoTemplateSourceUrl(null);
-        addToast(
-          `${template.title} loaded. Click Generate to create a video from this image.`,
-          'success',
-        );
-      } catch (error) {
-        addToast(
-          error instanceof Error
-            ? error.message
-            : 'Failed to prepare image for video generation.',
-          'error',
-        );
-      }
+        gallery.setShowLibrary(false);
+        router.push(APP_ROUTES.video);
     },
     [
       videoTemplateSourceUrl,
       pickTemplatePrompt,
       onboardingSelection,
-      buildUploadedImageFromUrl,
-      video,
-      setActiveTemplateId,
+      setPendingVideoSetup,
       gallery,
-      addToast,
       router,
     ],
   );
@@ -1286,26 +1289,7 @@ export function AppWorkspacePage() {
           <>
             {/* Top Bar - Gallery Toggle */}
             <div className="p-4 flex items-center justify-between gap-2">
-              {!onboardingSelection ? (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => quickGarmentInputRef.current?.click()}
-                    className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-                  >
-                    {primaryInputActionLabel}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSubjectModalTarget('style')}
-                    className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-                  >
-                    {secondaryInputActionLabel}
-                  </button>
-                </div>
-              ) : (
-                <div />
-              )}
+              <div />
 
               <div className="flex items-center gap-2">
                 <button
@@ -1460,13 +1444,8 @@ export function AppWorkspacePage() {
                             Workspace Ready
                           </p>
                           <h3 className="mt-2 text-2xl font-semibold text-gray-900">
-                            {useProductLanguage
-                              ? 'Add your product to generate'
-                              : 'Add your garment to generate'}
+                            Upload a photo to generate
                           </h3>
-                          <p className="mt-2 text-sm text-gray-600">
-                            Upload your main product/garment first. Subject reference is optional.
-                          </p>
                           <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
                             <button
                               type="button"

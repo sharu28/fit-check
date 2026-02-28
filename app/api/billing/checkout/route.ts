@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
 
 const PLAN_PRODUCT_MAP: Record<string, string | undefined> = {
@@ -8,14 +9,11 @@ const PLAN_PRODUCT_MAP: Record<string, string | undefined> = {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const supabase = await createClient();
 
     const { plan } = await request.json();
     const productId = PLAN_PRODUCT_MAP[plan];

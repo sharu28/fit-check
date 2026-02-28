@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import type { ReactNode } from 'react';
-import { CheckCircle2, Circle, Shirt, User } from 'lucide-react';
+import { CheckCircle2, Circle, Image as ImageIcon, User } from 'lucide-react';
 
 interface SingleSwapGuideProps {
   hasGarment: boolean;
@@ -36,7 +36,7 @@ function StepItem({
 
 interface RequiredCardProps {
   title: string;
-  description: string;
+  description?: string;
   previewUrl?: string;
   complete: boolean;
   optional?: boolean;
@@ -64,7 +64,7 @@ function RequiredCard({
           </span>
           <div>
             <h4 className="text-sm font-semibold text-gray-900">{title}</h4>
-            <p className="text-xs text-gray-500">{description}</p>
+            {description && <p className="text-xs text-gray-500">{description}</p>}
           </div>
         </div>
         <span
@@ -123,25 +123,18 @@ export function SingleSwapGuide({
     <div className="w-full h-full min-h-[430px] rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/60 p-5 md:p-8">
       <div className="mx-auto flex h-full w-full max-w-4xl flex-col">
         <header className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
-            Single Swap Workflow
-          </p>
-          <h3 className="mt-2 text-2xl font-semibold text-gray-900">Add your main asset to generate</h3>
-          <p className="mt-2 text-sm text-gray-600">
-            Upload one garment first. Subject reference is optional.
-          </p>
+          <h3 className="text-2xl font-semibold text-gray-900">Start with a photo</h3>
         </header>
 
         <ol className="mt-5 grid grid-cols-1 gap-2 rounded-xl border border-gray-200 bg-white p-3 sm:grid-cols-3">
-          <StepItem label="1. Upload Garment" done={hasGarment} />
-          <StepItem label="2. Add Subject (Optional)" done={hasSubject} />
+          <StepItem label="1. Upload Photo" done={hasGarment} />
+          <StepItem label="2. Add Model (Optional)" done={hasSubject} />
           <StepItem label="3. Generate" done={readyToGenerate} />
         </ol>
 
         <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
           <RequiredCard
-            title="Garment"
-            description="Upload the clothing item first"
+            title="Product Photo"
             previewUrl={garmentPreviewUrl}
             complete={hasGarment}
             onAction={() => {
@@ -151,12 +144,11 @@ export function SingleSwapGuide({
               }
               onAddGarment();
             }}
-            actionLabel={hasGarment ? 'Change Garment' : 'Upload Garment'}
-            icon={<Shirt size={16} />}
+            actionLabel={hasGarment ? 'Change' : 'Upload Photo'}
+            icon={<ImageIcon size={16} />}
           />
           <RequiredCard
-            title="Subject"
-            description="Select the model / person (optional)"
+            title="Model"
             previewUrl={subjectPreviewUrl}
             complete={hasSubject}
             optional
@@ -167,7 +159,7 @@ export function SingleSwapGuide({
               }
               onAddSubject();
             }}
-            actionLabel={hasSubject ? 'Change Subject' : 'Upload Subject'}
+            actionLabel={hasSubject ? 'Change' : 'Add Model'}
             icon={<User size={16} />}
           />
         </div>
@@ -178,7 +170,7 @@ export function SingleSwapGuide({
             onClick={onAddSubject}
             className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
           >
-            Choose Subject From Library
+            Choose from Library
           </button>
         </div>
 
@@ -209,8 +201,8 @@ export function SingleSwapGuide({
 
         <p className="mt-4 text-center text-sm font-medium text-gray-600">
           {readyToGenerate
-            ? 'Ready to generate. Use the Generate button below.'
-            : 'Generate unlocks after garment input is added.'}
+            ? 'Ready to generate.'
+            : 'Upload a photo to get started.'}
         </p>
       </div>
     </div>

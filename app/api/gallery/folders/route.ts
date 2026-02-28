@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
 
 function normalizeFolderName(raw: unknown): string | null {
@@ -10,19 +11,16 @@ function normalizeFolderName(raw: unknown): string | null {
 
 export async function GET() {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const supabase = await createClient();
 
     const { data, error } = await supabase
       .from('gallery_folders')
       .select('id, name, parent_id, created_at, updated_at')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -47,14 +45,11 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const supabase = await createClient();
 
     const body = await request.json();
     const name = normalizeFolderName(body?.name);
@@ -69,7 +64,7 @@ export async function POST(request: NextRequest) {
         .from('gallery_folders')
         .select('id')
         .eq('id', parentId)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .maybeSingle();
 
       if (parentError) {
@@ -87,7 +82,7 @@ export async function POST(request: NextRequest) {
       .from('gallery_folders')
       .insert({
         id,
-        user_id: user.id,
+        user_id: userId,
         parent_id: parentId,
         name,
       })
@@ -122,14 +117,11 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const supabase = await createClient();
 
     const body = await request.json();
     const id = body?.id;
@@ -146,7 +138,7 @@ export async function PATCH(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .select('id, name, parent_id, created_at, updated_at')
       .maybeSingle();
 
@@ -182,14 +174,11 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const supabase = await createClient();
 
     const body = await request.json().catch(() => ({}));
     const id = body?.id;
@@ -201,7 +190,7 @@ export async function DELETE(request: NextRequest) {
     const { data: folders, error: folderFetchError } = await supabase
       .from('gallery_folders')
       .select('id, parent_id')
-      .eq('user_id', user.id);
+      .eq('user_id', userId);
 
     if (folderFetchError) {
       console.error('Failed to fetch folders for delete:', folderFetchError);
@@ -237,7 +226,7 @@ export async function DELETE(request: NextRequest) {
     const { error: unassignError } = await supabase
       .from('gallery_items')
       .update({ folder_id: null })
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .in('folder_id', deleteIds);
 
     if (unassignError) {
@@ -248,7 +237,7 @@ export async function DELETE(request: NextRequest) {
     const { error: deleteError } = await supabase
       .from('gallery_folders')
       .delete()
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .in('id', deleteIds);
 
     if (deleteError) {

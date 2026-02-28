@@ -1,7 +1,16 @@
-﻿import { NextResponse, type NextRequest } from 'next/server';
-import { updateSession } from '@/lib/supabase/middleware';
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
 
-export async function middleware(request: NextRequest) {
+const isPublicRoute = createRouteMatcher([
+  '/',
+  '/auth(.*)',
+  '/pricing(.*)',
+  '/ui-preview(.*)',
+  '/api/webhooks/(.*)',
+]);
+
+export default clerkMiddleware(async (auth, request) => {
+  // Allow E2E auth bypass for Playwright tests on localhost
   const isLocalhost =
     request.nextUrl.hostname === 'localhost' ||
     request.nextUrl.hostname === '127.0.0.1';
@@ -14,18 +23,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  return await updateSession(request);
-}
+  if (!isPublicRoute(request)) {
+    await auth.protect();
+  }
+});
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public assets (images, svgs, etc.)
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

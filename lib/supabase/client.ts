@@ -1,30 +1,40 @@
 'use client';
 
-import { createBrowserClient } from '@supabase/ssr';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { useAuth } from '@clerk/nextjs';
+import { useMemo } from 'react';
 
-let browserClient: SupabaseClient | null = null;
+/**
+ * Returns a Supabase client configured with the current Clerk JWT.
+ * Use this hook in client components that need to query Supabase directly.
+ * Most data access should go through API routes instead.
+ */
+export function useSupabaseClient() {
+  const { getToken } = useAuth();
 
-export function createClient() {
-  if (browserClient) return browserClient;
-
-  browserClient = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookieOptions: {
-        lifetime: 60 * 60 * 24 * 365, // 1 year
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-      },
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-      },
-    },
+  return useMemo(
+    () =>
+      createSupabaseClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          global: {
+            fetch: async (url, options = {}) => {
+              const clerkToken = await getToken({ template: 'supabase' });
+              const headers = new Headers(options?.headers);
+              if (clerkToken) {
+                headers.set('Authorization', `Bearer ${clerkToken}`);
+              }
+              return fetch(url, { ...options, headers });
+            },
+          },
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false,
+          },
+        },
+      ),
+    [getToken],
   );
-
-  return browserClient;
 }

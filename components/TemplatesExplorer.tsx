@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   Search,
   Globe,
@@ -268,6 +268,21 @@ export function TemplatesExplorer({ onUseTemplate }: TemplatesExplorerProps) {
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeFormat, setActiveFormat] = useState<'all' | 'image' | 'video' | 'mixed'>('all');
+  const [previews, setPreviews] = useState<Record<string, string>>({});
+  const [previewErrors, setPreviewErrors] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch('/api/admin/template-previews');
+        if (!res.ok) return;
+        const { previews: map } = (await res.json()) as { previews: Record<string, string> };
+        setPreviews(map);
+      } catch {
+        // silently fail — fallback to gradients
+      }
+    })();
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -341,17 +356,39 @@ export function TemplatesExplorer({ onUseTemplate }: TemplatesExplorerProps) {
       <div className="grid grid-cols-1 gap-5 p-6 md:grid-cols-2 xl:grid-cols-3">
         {filtered.map((template) => {
           const Icon = CATEGORY_ICONS[template.category] ?? Clapperboard;
+          const previewUrl = previewErrors[template.id] ? undefined : previews[template.id];
+          const isVideoPreview = previewUrl?.endsWith('.mp4');
+
           return (
             <article
               key={template.id}
               className="group overflow-hidden rounded-2xl border border-gray-200 bg-white transition hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md"
             >
-              <div className={`h-44 w-full bg-gradient-to-br ${template.accentClass} p-4`}>
-                <div className="flex items-start justify-between">
-                  <span className="rounded-full bg-white/85 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-700">
+              <div className={`relative h-44 w-full overflow-hidden bg-gradient-to-br ${template.accentClass}`}>
+                {previewUrl && !isVideoPreview && (
+                  <img
+                    src={previewUrl}
+                    alt={`${template.title} preview`}
+                    className="absolute inset-0 h-full w-full object-cover"
+                    onError={() => setPreviewErrors((prev) => ({ ...prev, [template.id]: true }))}
+                  />
+                )}
+                {previewUrl && isVideoPreview && (
+                  <video
+                    src={previewUrl}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="absolute inset-0 h-full w-full object-cover"
+                    onError={() => setPreviewErrors((prev) => ({ ...prev, [template.id]: true }))}
+                  />
+                )}
+                <div className="relative z-10 flex items-start justify-between p-4">
+                  <span className="rounded-full bg-white/85 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-700 backdrop-blur-sm">
                     {template.format}
                   </span>
-                  <Icon size={16} className="text-gray-700/80" />
+                  <Icon size={16} className={previewUrl ? 'text-white drop-shadow' : 'text-gray-700/80'} />
                 </div>
               </div>
               <div className="space-y-3 p-4">
@@ -365,6 +402,9 @@ export function TemplatesExplorer({ onUseTemplate }: TemplatesExplorerProps) {
                 >
                   Use Template
                 </button>
+                <p className="mt-2 text-center text-xs text-gray-400">
+                  Loads a prompt — then add your photos in the studio to generate.
+                </p>
               </div>
             </article>
           );

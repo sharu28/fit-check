@@ -62,36 +62,43 @@ const GOAL_OPTIONS: Array<{
   id: OnboardingGoal;
   outputType: 'Image-first' | 'Video-first' | 'Mixed';
   accentClass: string;
+  description: string;
 }> = [
   {
     id: 'product-ads',
     outputType: 'Image-first',
     accentClass: 'from-fuchsia-300/70 via-pink-200/60 to-rose-300/60',
+    description: 'Styled shots of your product on a model. Perfect for social ads and campaigns.',
   },
   {
     id: 'catalog-listings',
     outputType: 'Image-first',
     accentClass: 'from-slate-300/70 via-zinc-200/60 to-stone-300/60',
+    description: 'Clean on-model product images for your store, Amazon, or marketplace.',
   },
   {
     id: 'editorial-shoot',
     outputType: 'Image-first',
     accentClass: 'from-violet-300/70 via-indigo-200/60 to-sky-300/60',
+    description: 'Magazine-style creative imagery with a strong visual narrative.',
   },
   {
     id: 'influencer-video',
     outputType: 'Video-first',
     accentClass: 'from-cyan-300/70 via-sky-200/60 to-indigo-300/60',
+    description: 'Short video showing your product worn or used, influencer-style.',
   },
   {
     id: 'launch-campaign',
     outputType: 'Mixed',
     accentClass: 'from-orange-300/70 via-amber-200/60 to-yellow-300/60',
+    description: 'A mix of images and videos to announce a new product or collection.',
   },
   {
     id: 'whatsapp-status-pack',
     outputType: 'Mixed',
     accentClass: 'from-emerald-300/70 via-lime-200/60 to-teal-300/60',
+    description: 'Thumb-stopping vertical content for WhatsApp status and Stories.',
   },
 ];
 
@@ -310,6 +317,9 @@ export function OnboardingQuestionnaire({
                               {option.outputType}
                             </span>
                           </div>
+                          <p className="mt-0.5 text-xs leading-snug text-white/70">
+                            {option.description}
+                          </p>
                         </div>
                       </div>
                     </button>

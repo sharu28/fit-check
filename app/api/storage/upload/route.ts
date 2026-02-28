@@ -1,21 +1,32 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
+import sharp from 'sharp';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
 import { deleteFromR2, uploadToR2 } from '@/lib/r2';
 import { applyWatermark } from '@/lib/watermark';
 import { getUserCredits } from '@/lib/credits';
-import sharp from 'sharp';
+
+type PostgrestLikeError = {
+  code?: string;
+  message?: string;
+};
+
+function isMissingGalleryItemsTable(error: PostgrestLikeError | null): boolean {
+  if (!error) return false;
+  if (error.code === '42P01' || error.code === 'PGRST205') return true;
+  const message = (error.message || '').toLowerCase();
+  return message.includes('gallery_items') && message.includes('schema cache');
+}
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify auth
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const clerkUser = await currentUser();
+    const userEmail = clerkUser?.primaryEmailAddress?.emailAddress ?? null;
+    const supabase = await createClient();
 
     const body = await request.json();
     const { base64, url, mimeType, type, folderId = null } = body;
@@ -25,7 +36,7 @@ export async function POST(request: NextRequest) {
         .from('gallery_folders')
         .select('id')
         .eq('id', folderId)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .maybeSingle();
 
       if (folderError) {
@@ -49,7 +60,6 @@ export async function POST(request: NextRequest) {
     if (base64) {
       fileBuffer = Buffer.from(base64, 'base64');
     } else if (url) {
-      // Fetch from URL (for saving generation results)
       const res = await fetch(url);
       const arrayBuffer = await res.arrayBuffer();
       fileBuffer = Buffer.from(arrayBuffer);
@@ -65,31 +75,28 @@ export async function POST(request: NextRequest) {
     const isVideo = mimeType?.startsWith('video/');
     const ext = isVideo ? 'mp4' : mimeType?.includes('png') ? 'png' : 'jpg';
 
-    // Watermark free-tier generation images
     if (type === 'generation' && !isVideo) {
       try {
         const { plan, isUnlimited } = await getUserCredits(
           supabase,
-          user.id,
-          user.email,
+          userId,
+          userEmail,
         );
         if (plan === 'free' && !isUnlimited) {
           fileBuffer = Buffer.from(await applyWatermark(fileBuffer));
         }
-      } catch (e) {
-        console.error('Watermark check failed, skipping:', e);
+      } catch (watermarkError) {
+        console.error('Watermark check failed, skipping:', watermarkError);
       }
     }
 
-    // Upload original
-    const originalKey = `${user.id}/${type}s/${id}.${ext}`;
+    const originalKey = `${userId}/${type}s/${id}.${ext}`;
     const originalUrl = await uploadToR2(
       originalKey,
       fileBuffer,
       mimeType || (isVideo ? 'video/mp4' : 'image/jpeg'),
     );
 
-    // Generate and upload thumbnail (images only)
     let thumbnailUrl: string | undefined;
     let thumbKey: string | undefined;
     if (!isVideo) {
@@ -99,19 +106,18 @@ export async function POST(request: NextRequest) {
           .webp({ quality: 80 })
           .toBuffer();
 
-        thumbKey = `${user.id}/${type}s/thumbs/${id}.webp`;
+        thumbKey = `${userId}/${type}s/thumbs/${id}.webp`;
         thumbnailUrl = await uploadToR2(thumbKey, thumbnailBuffer, 'image/webp');
-      } catch (e) {
-        console.error('Thumbnail generation failed:', e);
+      } catch (thumbnailError) {
+        console.error('Thumbnail generation failed:', thumbnailError);
       }
     }
 
-    // Save metadata to Supabase
     const { data, error } = await supabase
       .from('gallery_items')
       .insert({
         id,
-        user_id: user.id,
+        user_id: userId,
         url: originalUrl,
         thumbnail_url: thumbnailUrl,
         mime_type: mimeType || 'image/jpeg',
@@ -123,6 +129,20 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
+      if (isMissingGalleryItemsTable(error as PostgrestLikeError)) {
+        console.warn('gallery_items table missing; returning R2-backed item without DB metadata');
+        return NextResponse.json({
+          id,
+          url: originalUrl,
+          thumbnailUrl,
+          base64: '',
+          mimeType: mimeType || (isVideo ? 'video/mp4' : 'image/jpeg'),
+          timestamp,
+          type,
+          folderId,
+        });
+      }
+
       console.error('Failed to save gallery item:', error);
 
       try {

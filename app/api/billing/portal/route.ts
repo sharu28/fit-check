@@ -1,22 +1,20 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
 import { createCustomerSession } from '@/lib/polar';
 
 export async function POST() {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const supabase = await createClient();
 
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('polar_customer_id')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single();
 
     if (!profile?.polar_customer_id) {

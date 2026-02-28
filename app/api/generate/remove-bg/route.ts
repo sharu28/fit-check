@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@/lib/supabase/server';
 import { removeBackground } from '@/lib/pixian';
 import { uploadToR2 } from '@/lib/r2';
@@ -6,14 +7,11 @@ import sharp from 'sharp';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const supabase = await createClient();
 
     const { imageUrl, base64, mimeType, saveToGallery = true } = await request.json();
 
@@ -58,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     // Upload result to R2
     const id = crypto.randomUUID();
-    const originalKey = `${user.id}/generations/${id}.png`;
+    const originalKey = `${userId}/generations/${id}.png`;
     const originalUrl = await uploadToR2(originalKey, resultBuffer, 'image/png');
 
     // Generate thumbnail
@@ -69,7 +67,7 @@ export async function POST(request: NextRequest) {
         .webp({ quality: 80 })
         .toBuffer();
 
-      const thumbKey = `${user.id}/generations/thumbs/${id}.webp`;
+      const thumbKey = `${userId}/generations/thumbs/${id}.webp`;
       thumbnailUrl = await uploadToR2(thumbKey, thumbnailBuffer, 'image/webp');
     } catch (e) {
       console.error('BG removal thumbnail failed:', e);
@@ -80,7 +78,7 @@ export async function POST(request: NextRequest) {
       .from('gallery_items')
       .insert({
         id,
-        user_id: user.id,
+        user_id: userId,
         url: originalUrl,
         thumbnail_url: thumbnailUrl,
         mime_type: 'image/png',

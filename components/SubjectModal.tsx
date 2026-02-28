@@ -158,8 +158,9 @@ export function SubjectModal({
           </div>
 
           {error && (
-            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
+            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Subject presets aren&apos;t available right now — use{' '}
+              <strong>Upload New</strong> below to add your own photo.
             </div>
           )}
 

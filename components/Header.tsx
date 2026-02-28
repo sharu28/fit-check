@@ -127,6 +127,9 @@ export function Header({
                 <button onClick={onNavigateHome} className={navButtonClass(isHomeActive)}>
                   Home
                 </button>
+                <button onClick={onNavigateGuide} className={`mt-1 ${navButtonClass(activeSection === 'guide')}`}>
+                  Guide
+                </button>
                 <button onClick={onNavigateImage} className={`mt-1 ${navButtonClass(isImageActive)}`}>
                   Image
                 </button>
@@ -138,9 +141,6 @@ export function Header({
                 </button>
                 <button onClick={onNavigateAssistant} className={`mt-1 ${navButtonClass(activeSection === 'assistant')}`}>
                   Assistant
-                </button>
-                <button onClick={onNavigateGuide} className={`mt-1 ${navButtonClass(activeSection === 'guide')}`}>
-                  Guide
                 </button>
                 <button onClick={onNavigateOnboarding} className={`mt-1 ${navButtonClass(isOnboardingOpen)}`}>
                   Onboarding
@@ -167,6 +167,9 @@ export function Header({
               <button onClick={onNavigateHome} className={collapsedNavButtonClass(isHomeActive)} aria-label="Home" title="Home">
                 <House size={17} />
               </button>
+              <button onClick={onNavigateGuide} className={collapsedNavButtonClass(activeSection === 'guide')} aria-label="Guide" title="Guide">
+                <BookOpen size={17} />
+              </button>
               <button onClick={onNavigateImage} className={collapsedNavButtonClass(isImageActive)} aria-label="Image tool" title="Image">
                 <ImageIcon size={17} />
               </button>
@@ -178,9 +181,6 @@ export function Header({
               </button>
               <button onClick={onNavigateAssistant} className={collapsedNavButtonClass(activeSection === 'assistant')} aria-label="Assistant" title="Assistant">
                 <Bot size={17} />
-              </button>
-              <button onClick={onNavigateGuide} className={collapsedNavButtonClass(activeSection === 'guide')} aria-label="Guide" title="Guide">
-                <BookOpen size={17} />
               </button>
               <button onClick={onNavigateOnboarding} className={collapsedNavButtonClass(isOnboardingOpen)} aria-label="Onboarding guide" title="Onboarding guide">
                 <Sparkles size={17} />
