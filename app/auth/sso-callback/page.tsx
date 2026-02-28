@@ -1,23 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { AuthenticateWithRedirectCallback } from '@clerk/nextjs';
 
 export default function SSOCallback() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [timedOut, setTimedOut] = useState(false);
-
-  const hasOAuthParams = useMemo(() => {
-    return (
-      searchParams.has('code') ||
-      searchParams.has('state') ||
-      searchParams.has('__clerk_status') ||
-      searchParams.has('__clerk_db_jwt')
-    );
-  }, [searchParams]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -44,11 +34,6 @@ export default function SSOCallback() {
             <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-black" />
             <h1 className="mt-4 text-lg font-semibold text-gray-900">Completing sign-in</h1>
             <p className="mt-2 text-sm text-gray-600">Please wait...</p>
-            {!hasOAuthParams && (
-              <p className="mt-3 text-xs text-amber-700">
-                Waiting for OAuth callback parameters.
-              </p>
-            )}
           </>
         ) : (
           <>
