@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { createClient } from '@/lib/supabase/server';
 
 const PLAN_PRODUCT_MAP: Record<string, string | undefined> = {
   pro: process.env.POLAR_PRO_PRODUCT_ID,
@@ -13,7 +12,6 @@ export async function POST(request: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const supabase = await createClient();
 
     const { plan } = await request.json();
     const productId = PLAN_PRODUCT_MAP[plan];
