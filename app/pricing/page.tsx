@@ -20,10 +20,10 @@ const plans = [
     period: '/month',
     icon: <Zap size={20} />,
     credits: 10,
-    hint: '10 images',
+    hint: '10 images/month',
     features: [
       '10 credits/month',
-      '1 credit per image (2K)',
+      '1 credit per image',
       'Watermark on outputs',
       'Community support',
     ],
@@ -31,31 +31,31 @@ const plans = [
     highlighted: false,
   },
   {
-    name: 'Creator',
-    price: '$15',
+    name: 'Starter',
+    price: '$6',
     period: '/month',
     icon: <Star size={20} />,
-    credits: 50,
-    hint: '50 images or 16 videos',
+    credits: 20,
+    hint: '20 images or 6 videos/month',
     features: [
-      '50 credits/month',
+      '20 credits/month',
       '1 credit per image (2K or 4K)',
       '3 credits per 5s video',
       'No watermark',
       'All presets & styles',
     ],
-    cta: 'Upgrade to Creator',
+    cta: 'Upgrade to Starter',
     highlighted: false,
   },
   {
     name: 'Pro',
-    price: '$35',
+    price: '$25',
     period: '/month',
     icon: <Crown size={20} />,
-    credits: 150,
-    hint: '150 images or 50 videos',
+    credits: 80,
+    hint: '80 images or 26 videos/month',
     features: [
-      '150 credits/month',
+      '80 credits/month',
       '1 credit per image (2K or 4K)',
       '3–5 credits per video',
       'No watermark',
@@ -70,10 +70,10 @@ const plans = [
     price: '$99',
     period: '/month',
     icon: <Sparkles size={20} />,
-    credits: 500,
-    hint: '500 images or 166 videos',
+    credits: 350,
+    hint: '350 images or 116 videos/month',
     features: [
-      '500 credits/month',
+      '350 credits/month',
       '1 credit per image (2K or 4K)',
       '3–5 credits per video',
       'No watermark',
@@ -260,10 +260,10 @@ export default function PricingPage() {
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             {[
-              { credits: 15, price: '$6', hint: '15 images or 5 videos' },
-              { credits: 50, price: '$18', hint: '50 images or 16 videos' },
-              { credits: 150, price: '$49', hint: '150 images or 50 videos' },
-              { credits: 500, price: '$140', hint: '500 images or 166 videos' },
+              { credits: 10, price: '$5', hint: '10 images or 3 videos' },
+              { credits: 30, price: '$13', hint: '30 images or 10 videos' },
+              { credits: 100, price: '$40', hint: '100 images or 33 videos' },
+              { credits: 250, price: '$90', hint: '250 images or 83 videos' },
             ].map((pack) => (
               <button
                 key={pack.credits}

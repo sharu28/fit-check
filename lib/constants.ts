@@ -12,9 +12,9 @@ export const DEFAULT_PROMPT = 'Dress the person in the provided garment, maintai
 // Monthly credit allocation per plan
 export const PLAN_CREDITS = {
   free: 10,
-  creator: 50,
-  pro: 150,
-  studio: 500,
+  starter: 20,
+  pro: 80,
+  studio: 350,
 } as const;
 
 // Credit costs per generation type (configurable)

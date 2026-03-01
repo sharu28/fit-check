@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 const PLAN_PRODUCT_MAP: Record<string, string | undefined> = {
-  creator: process.env.POLAR_CREATOR_PRODUCT_ID,
+  starter: process.env.POLAR_STARTER_PRODUCT_ID,
   pro: process.env.POLAR_PRO_PRODUCT_ID,
   studio: process.env.POLAR_STUDIO_PRODUCT_ID,
 };
