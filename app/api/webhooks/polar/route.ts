@@ -4,8 +4,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { PLAN_CREDITS } from '@/lib/constants';
 
 const PRODUCT_PLAN_MAP: Record<string, string> = {
+  ...(process.env.POLAR_CREATOR_PRODUCT_ID ? { [process.env.POLAR_CREATOR_PRODUCT_ID]: 'creator' } : {}),
   ...(process.env.POLAR_PRO_PRODUCT_ID ? { [process.env.POLAR_PRO_PRODUCT_ID]: 'pro' } : {}),
-  ...(process.env.POLAR_PREMIUM_PRODUCT_ID ? { [process.env.POLAR_PREMIUM_PRODUCT_ID]: 'premium' } : {}),
+  ...(process.env.POLAR_STUDIO_PRODUCT_ID ? { [process.env.POLAR_STUDIO_PRODUCT_ID]: 'studio' } : {}),
 };
 
 const handler = Webhooks({
@@ -22,8 +23,8 @@ const handler = Webhooks({
         const productId = data.product_id;
         if (!customerId || !productId) break;
 
-        const plan = PRODUCT_PLAN_MAP[productId] || 'pro';
-        const credits = PLAN_CREDITS[plan as keyof typeof PLAN_CREDITS] ?? PLAN_CREDITS.pro;
+        const plan = PRODUCT_PLAN_MAP[productId] || 'creator';
+        const credits = PLAN_CREDITS[plan as keyof typeof PLAN_CREDITS] ?? PLAN_CREDITS.creator;
 
         await supabase
           .from('user_profiles')

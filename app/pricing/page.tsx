@@ -20,46 +20,68 @@ const plans = [
     period: '/month',
     icon: <Zap size={20} />,
     credits: 10,
+    hint: '10 images',
     features: [
       '10 credits/month',
-      'Image generation (2K)',
-      'Basic presets',
+      '1 credit per image (2K)',
+      'Watermark on outputs',
       'Community support',
     ],
     cta: 'Current Plan',
     highlighted: false,
   },
   {
-    name: 'Pro',
-    price: '$9',
+    name: 'Creator',
+    price: '$15',
     period: '/month',
     icon: <Star size={20} />,
-    credits: 100,
+    credits: 50,
+    hint: '50 images or 16 videos',
     features: [
-      '100 credits/month',
-      'Image generation (up to 4K)',
-      'Video generation (5s)',
+      '50 credits/month',
+      '1 credit per image (2K or 4K)',
+      '3 credits per 5s video',
+      'No watermark',
       'All presets & styles',
-      'Priority support',
+    ],
+    cta: 'Upgrade to Creator',
+    highlighted: false,
+  },
+  {
+    name: 'Pro',
+    price: '$35',
+    period: '/month',
+    icon: <Crown size={20} />,
+    credits: 150,
+    hint: '150 images or 50 videos',
+    features: [
+      '150 credits/month',
+      '1 credit per image (2K or 4K)',
+      '3–5 credits per video',
+      'No watermark',
+      'All presets & styles',
+      'Priority queue',
     ],
     cta: 'Upgrade to Pro',
     highlighted: true,
   },
   {
-    name: 'Premium',
-    price: '$29',
+    name: 'Studio',
+    price: '$99',
     period: '/month',
-    icon: <Crown size={20} />,
+    icon: <Sparkles size={20} />,
     credits: 500,
+    hint: '500 images or 166 videos',
     features: [
       '500 credits/month',
-      'Image generation (up to 4K)',
-      'Video generation (10s)',
+      '1 credit per image (2K or 4K)',
+      '3–5 credits per video',
+      'No watermark',
       'All presets & styles',
-      'Priority support',
+      'Priority queue',
       'Early access to new features',
     ],
-    cta: 'Upgrade to Premium',
+    cta: 'Upgrade to Studio',
     highlighted: false,
   },
 ];
@@ -130,7 +152,7 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         {/* Back link */}
         <Link
           href="/app"
@@ -155,7 +177,7 @@ export default function PricingPage() {
         </div>
 
         {/* Plans Grid */}
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-4 gap-4">
           {plans.map((plan) => (
             <div
               key={plan.name}
@@ -187,12 +209,13 @@ export default function PricingPage() {
                   </h3>
                 </div>
 
-                <div className="mb-6">
+                <div className="mb-1">
                   <span className="text-3xl font-bold text-gray-900">
                     {plan.price}
                   </span>
                   <span className="text-gray-500 text-sm">{plan.period}</span>
                 </div>
+                <p className="text-xs text-gray-400 mb-6">{plan.hint}</p>
 
                 <ul className="space-y-3 mb-6">
                   {plan.features.map((feature) => (
@@ -235,17 +258,18 @@ export default function PricingPage() {
           <p className="text-gray-500 text-sm mb-6">
             Buy credit top-ups anytime without changing your plan.
           </p>
-          <div className="flex justify-center gap-4">
+          <div className="flex flex-wrap justify-center gap-4">
             {[
-              { credits: 50, price: '$5' },
-              { credits: 150, price: '$12' },
-              { credits: 500, price: '$35' },
+              { credits: 15, price: '$6', hint: '15 images or 5 videos' },
+              { credits: 50, price: '$18', hint: '50 images or 16 videos' },
+              { credits: 150, price: '$49', hint: '150 images or 50 videos' },
+              { credits: 500, price: '$140', hint: '500 images or 166 videos' },
             ].map((pack) => (
               <button
                 key={pack.credits}
                 onClick={() => handleTopUp(pack.credits)}
                 disabled={loadingPlan === `topup-${pack.credits}`}
-                className="px-6 py-3 bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all disabled:opacity-50"
+                className="px-6 py-4 bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all disabled:opacity-50 text-left min-w-[140px]"
               >
                 {loadingPlan === `topup-${pack.credits}` ? (
                   <Loader2 size={16} className="animate-spin mx-auto mb-1" />
@@ -254,7 +278,8 @@ export default function PricingPage() {
                     {pack.credits} credits
                   </div>
                 )}
-                <div className="text-sm text-gray-500">{pack.price}</div>
+                <div className="text-sm font-semibold text-gray-700">{pack.price}</div>
+                <div className="text-xs text-gray-400 mt-1">{pack.hint}</div>
               </button>
             ))}
           </div>

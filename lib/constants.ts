@@ -12,16 +12,17 @@ export const DEFAULT_PROMPT = 'Dress the person in the provided garment, maintai
 // Monthly credit allocation per plan
 export const PLAN_CREDITS = {
   free: 10,
-  pro: 100,
-  premium: 500,
+  creator: 50,
+  pro: 150,
+  studio: 500,
 } as const;
 
 // Credit costs per generation type (configurable)
 export const CREDIT_COSTS = {
   image_2k: 1,
   image_4k: 2,
-  video_5s: 30,
-  video_10s: 60,
+  video_5s: 3,
+  video_10s: 5,
 } as const;
 
 // kie.ai model identifiers (swap these to change models)
